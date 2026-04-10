@@ -1,0 +1,12 @@
+openai>=1.30.0
+tradingview-ta>=3.3.0
+smartmoneyconcepts>=0.0.20
+yfinance>=0.2.30
+APScheduler>=3.10.0
+pandas>=2.0.0
+numpy>=1.24.0
+pydantic>=2.0.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+pytz>=2024.1
+loguru>=0.7.0
