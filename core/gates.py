@@ -92,19 +92,24 @@ def check_session_gate() -> GateResult:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 2. ADX GATE
+# 2. ADX GATE (per-symbol screener/exchange)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def check_adx_gate(pair: str = "EURUSD") -> GateResult:
     """
     Check if ADX on 4H is above the minimum threshold.
     If ADX < ADX_MIN_THRESHOLD, market is not trending enough.
+    Uses per-symbol screener/exchange from SYMBOL_CONFIG.
     """
+    sym_config = settings.get_symbol_config(pair)
+    screener = sym_config.get("screener", settings.SCREENER)
+    exchange = sym_config.get("exchange", settings.EXCHANGE)
+
     try:
         handler = TA_Handler(
             symbol=pair,
-            screener=settings.SCREENER,
-            exchange=settings.EXCHANGE,
+            screener=screener,
+            exchange=exchange,
             interval=Interval.INTERVAL_4_HOURS,
         )
         analysis = handler.get_analysis()
@@ -271,4 +276,32 @@ def run_all_gates(pairs: list[str] | None = None) -> tuple[bool, list[GateResult
         return False, results
 
     logger.info("✅ All gates passed")
+    return True, results
+
+
+def run_pair_gates(pair: str) -> tuple[bool, list[GateResult]]:
+    """
+    Run gates for a SINGLE pair (used in concurrent per-pair analysis).
+    Session gate is shared (same for all pairs), but ADX + news are per-pair.
+    """
+    results = []
+
+    # Gate 1: Session (global)
+    session = check_session_gate()
+    results.append(session)
+    if not session.passed:
+        return False, results
+
+    # Gate 2: ADX (per-pair with correct screener/exchange)
+    adx = check_adx_gate(pair)
+    results.append(adx)
+    if not adx.passed:
+        return False, results
+
+    # Gate 3: News (per-pair currencies)
+    news = check_news_gate([pair])
+    results.append(news)
+    if not news.passed:
+        return False, results
+
     return True, results

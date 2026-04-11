@@ -37,12 +37,52 @@ P2_BOS_CHOCH_POINTS = 3         # BOS / CHoCH confirmation
 # TRADING PAIRS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-PAIRS = ["EURUSD", "GBPUSD"]
+PAIRS = ["XAUUSD", "USDJPY", "EURUSD", "GBPUSD"]
 SCREENER = "forex"
 EXCHANGE = "OANDA"
 
-# yfinance symbol mapping (EURUSD → EURUSD=X)
+# Per-symbol pip/lot configuration
+# pip_size: smallest price increment counted as 1 pip
+# pip_value_micro: dollar value per pip at 0.01 lot (micro lot)
+# min_lot / max_lot: broker lot bounds
+SYMBOL_CONFIG = {
+    "XAUUSD": {
+        "pip_size": 0.01,
+        "pip_value_micro": 0.01,
+        "min_lot": 0.01,
+        "max_lot": 5.0,
+        "screener": "cfd",
+        "exchange": "TVC",
+    },
+    "USDJPY": {
+        "pip_size": 0.01,
+        "pip_value_micro": 0.07,
+        "min_lot": 0.01,
+        "max_lot": 2.0,
+        "screener": "forex",
+        "exchange": "OANDA",
+    },
+    "EURUSD": {
+        "pip_size": 0.0001,
+        "pip_value_micro": 0.10,
+        "min_lot": 0.01,
+        "max_lot": 2.0,
+        "screener": "forex",
+        "exchange": "OANDA",
+    },
+    "GBPUSD": {
+        "pip_size": 0.0001,
+        "pip_value_micro": 0.10,
+        "min_lot": 0.01,
+        "max_lot": 2.0,
+        "screener": "forex",
+        "exchange": "OANDA",
+    },
+}
+
+# yfinance symbol mapping
 YFINANCE_SYMBOLS = {
+    "XAUUSD": "GC=F",
     "EURUSD": "EURUSD=X",
     "GBPUSD": "GBPUSD=X",
     "USDJPY": "USDJPY=X",
@@ -53,6 +93,7 @@ YFINANCE_SYMBOLS = {
 
 # Currency extraction from pair (for news filtering)
 PAIR_CURRENCIES = {
+    "XAUUSD": ["XAU", "USD"],
     "EURUSD": ["EUR", "USD"],
     "GBPUSD": ["GBP", "USD"],
     "USDJPY": ["USD", "JPY"],
@@ -65,12 +106,17 @@ PAIR_CURRENCIES = {
 # ACCOUNT / RISK
 # ═══════════════════════════════════════════════════════════════════════════════
 
-MAX_LOSS_PER_TRADE = 2.0        # max USD to lose per trade
-SPREAD_PIPS = 2.0               # broker typical spread
+# Dynamic risk — 5% of account balance per trade (computed at runtime)
+MAX_LOSS_PER_TRADE_PCT = 0.05   # 5% of balance
+SPREAD_PIPS = 2.0               # broker typical spread (unified for all pairs)
 LEVERAGE = 3000                 # 1:3000
 MIN_RR_RATIO = 2.0              # minimum R:R safety floor
 MAX_TRADES_PER_DAY = 2
-DAILY_LOSS_LIMIT_USD = 6.0      # hard daily loss cap
+DAILY_LOSS_LIMIT_PCT = 0.15     # 15% of balance daily loss cap
+
+# Legacy fixed fallback (used when MT5 balance unavailable)
+MAX_LOSS_PER_TRADE = 2.0
+DAILY_LOSS_LIMIT_USD = 6.0
 
 # R:R scaling by score
 RR_TIERS = [
@@ -78,9 +124,9 @@ RR_TIERS = [
     {"min_score": 68, "max_score": 80, "rr_ratio": 2.0},
 ]
 
-# Pip values (for lot size calculation)
-PIP_SIZE = 0.0001               # for EUR/GBP pairs (4-digit after decimal)
-PIP_VALUE_PER_MICRO_LOT = 0.10  # $0.10 per pip for 0.01 lot on EURUSD/GBPUSD
+# Lot size bounds (global defaults — overridden by SYMBOL_CONFIG per pair)
+PIP_SIZE = 0.0001               # default for forex pairs
+PIP_VALUE_PER_MICRO_LOT = 0.10  # default for EURUSD/GBPUSD
 MIN_LOT = 0.01
 MAX_LOT = 2.0
 
@@ -89,17 +135,19 @@ MAX_LOT = 2.0
 # ═══════════════════════════════════════════════════════════════════════════════
 
 LLM_API_KEY = os.getenv("LLM_API_KEY", "your-api-key-here")
-LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1")
-LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o")
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://openrouter.ai/api/v1")
+LLM_MODEL = os.getenv("LLM_MODEL", "nvidia/nemotron-3-super-120b-a12b:free")
 LLM_TEMPERATURE = 0.2          # low temp for consistent scoring
 LLM_MAX_TOKENS = 2000          # enough for reasoning + JSON
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# MT5 HTTP REST API (metatrader-mcp-server)
+# METATRADER 5 — NATIVE CONNECTION
 # ═══════════════════════════════════════════════════════════════════════════════
 
-MT5_BASE_URL = os.getenv("MT5_BASE_URL", "http://localhost:8001/api/v1")
-MT5_TIMEOUT = 10                # seconds
+MT5_LOGIN = int(os.getenv("MT5_LOGIN", "0"))
+MT5_PASSWORD = os.getenv("MT5_PASSWORD", "")
+MT5_SERVER = os.getenv("MT5_SERVER", "")
+MT5_PATH = os.getenv("MT5_PATH", r"C:\Program Files\MetaTrader 5\terminal64.exe")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # HARD GATE THRESHOLDS
@@ -145,3 +193,19 @@ TRADES_FILE = "data/trades.json"
 # ═══════════════════════════════════════════════════════════════════════════════
 
 NEWS_CALENDAR_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# HELPER — get symbol-specific config with fallback
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def get_symbol_config(symbol: str) -> dict:
+    """Get per-symbol config, falling back to global defaults."""
+    return SYMBOL_CONFIG.get(symbol, {
+        "pip_size": PIP_SIZE,
+        "pip_value_micro": PIP_VALUE_PER_MICRO_LOT,
+        "min_lot": MIN_LOT,
+        "max_lot": MAX_LOT,
+        "screener": SCREENER,
+        "exchange": EXCHANGE,
+    })

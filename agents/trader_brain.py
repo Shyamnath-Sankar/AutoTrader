@@ -39,11 +39,14 @@ def _get_llm_client() -> OpenAI:
 # DYNAMIC SYSTEM PROMPT — BUILT FROM settings.py
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _build_system_prompt() -> str:
+def _build_system_prompt(target_pair: str | None = None) -> str:
     """
     Build the scoring system prompt dynamically from settings.py values.
     If you change PHASE1_MAX_SCORE, sub-score allocations, or minimums,
     this prompt updates automatically.
+
+    Args:
+        target_pair: if set, AI analyzes only this pair (concurrent mode)
     """
     total_max = settings.PHASE1_MAX_SCORE + settings.PHASE2_MAX_SCORE
 
@@ -51,6 +54,12 @@ def _build_system_prompt() -> str:
     rr_desc = ""
     for tier in settings.RR_TIERS:
         rr_desc += f"  - Score {tier['min_score']}–{tier['max_score']}: minimum R:R 1:{tier['rr_ratio']:.0f}\n"
+
+    # Pair instruction
+    if target_pair:
+        pair_instruction = f"You are analyzing ONLY {target_pair}. Focus entirely on this pair."
+    else:
+        pair_instruction = f"Evaluate ALL pairs ({', '.join(settings.PAIRS)}) and pick the best setup if any."
 
     prompt = f"""You are an elite Smart Money / ICT forex trader brain. You analyze raw market data and score trade setups using a two-phase confidence system. You use JUDGMENT, not rigid rules — you read all the data, assess everything holistically, and score with explicit reasoning.
 
@@ -147,11 +156,11 @@ SKIP: No viable setup, market is unfavorable
 ═══ RISK CONTEXT ═══
 
 Account balance: loaded live each cycle
-Max loss per trade: ${settings.MAX_LOSS_PER_TRADE}
+Max loss per trade: 5% of account balance (dynamic)
 Spread: {settings.SPREAD_PIPS} pips
 Max trades per day: {settings.MAX_TRADES_PER_DAY}
-Daily loss limit: ${settings.DAILY_LOSS_LIMIT_USD}
-Pairs: {', '.join(settings.PAIRS)}
+Daily loss limit: 15% of account balance (dynamic)
+{pair_instruction}
 
 ═══ RESPONSE FORMAT ═══
 
@@ -159,7 +168,7 @@ You MUST respond with ONLY valid JSON, no other text. Use this exact structure:
 
 {{
   "decision": "EXECUTE" | "WATCH" | "SKIP",
-  "pair": "EURUSD" | "GBPUSD" | null,
+  "pair": "{target_pair or 'XAUUSD" | "USDJPY" | "EURUSD" | "GBPUSD" | null'}",
   "direction": "BUY" | "SELL" | null,
   "phase1_scores": {{
     "regime": <0-{settings.P1_REGIME_POINTS}>,
@@ -190,7 +199,7 @@ You MUST respond with ONLY valid JSON, no other text. Use this exact structure:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# ANALYZE
+# ANALYZE (ALL PAIRS — legacy mode)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def analyze(market_data: MarketDataPayload) -> TraderDecision:
@@ -210,6 +219,48 @@ If multiple pairs look good, choose the highest-conviction one.
 
     logger.info("🧠 Sending data to AI Trader Brain...")
 
+    return _call_llm(client, system_prompt, user_message)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ANALYZE SINGLE PAIR (concurrent mode)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def analyze_pair(market_data: MarketDataPayload, pair: str) -> TraderDecision:
+    """
+    Analyze a SINGLE pair using the AI.
+    Used by the concurrent per-pair analysis pipeline.
+    """
+    client = _get_llm_client()
+    system_prompt = _build_system_prompt(target_pair=pair)
+    market_context = format_data_for_prompt(market_data)
+
+    user_message = f"""Analyze the following market data for {pair} and score the setup.
+Focus ONLY on {pair}.
+
+{market_context}"""
+
+    logger.info(f"🧠 Sending {pair} data to AI Trader Brain...")
+
+    decision = _call_llm(client, system_prompt, user_message)
+
+    # Ensure pair is set correctly
+    if decision.decision == "EXECUTE" and not decision.pair:
+        decision.pair = pair
+
+    return decision
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LLM CALL (shared logic)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _call_llm(
+    client: OpenAI,
+    system_prompt: str,
+    user_message: str,
+) -> TraderDecision:
+    """Call the LLM and parse the response into a TraderDecision."""
     try:
         response = client.chat.completions.create(
             model=settings.LLM_MODEL,

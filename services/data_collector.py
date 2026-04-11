@@ -10,7 +10,7 @@ Sources:
   6. Trade logger     → today's trades for context
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pandas as pd
 import pytz
@@ -61,11 +61,16 @@ YF_TIMEFRAMES = {
 
 def fetch_indicators(pair: str, timeframe_key: str, tv_interval) -> IndicatorSet | None:
     """Fetch indicator values from TradingView for a single pair + timeframe."""
+    # Use per-symbol screener/exchange from SYMBOL_CONFIG
+    sym_config = settings.get_symbol_config(pair)
+    screener = sym_config.get("screener", settings.SCREENER)
+    exchange = sym_config.get("exchange", settings.EXCHANGE)
+
     try:
         handler = TA_Handler(
             symbol=pair,
-            screener=settings.SCREENER,
-            exchange=settings.EXCHANGE,
+            screener=screener,
+            exchange=exchange,
             interval=tv_interval,
         )
         analysis = handler.get_analysis()
@@ -117,7 +122,7 @@ def fetch_all_indicators(pair: str) -> dict[str, IndicatorSet]:
 def fetch_ohlcv(pair: str, interval: str, period: str) -> pd.DataFrame | None:
     """
     Fetch OHLCV candle data from yfinance.
-    pair: "EURUSD" → converted to "EURUSD=X"
+    pair: "EURUSD" → converted to "EURUSD=X", "XAUUSD" → "GC=F"
     """
     yf_symbol = settings.YFINANCE_SYMBOLS.get(pair, f"{pair}=X")
     try:
@@ -279,7 +284,6 @@ def fetch_news_events(pairs: list[str]) -> list[NewsEvent]:
     now_utc = datetime.now(pytz.UTC)
     cutoff = now_utc + timedelta(hours=6)  # look 6 hours ahead for context
 
-    from datetime import timedelta
     result = []
     for event in events:
         event_country = event.get("country", "").upper()
@@ -315,7 +319,37 @@ def fetch_news_events(pairs: list[str]) -> list[NewsEvent]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 5. COLLECT EVERYTHING
+# 5. PER-PAIR DATA COLLECTION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def collect_pair_data(pair: str) -> PairMarketData:
+    """
+    Collect all market data for a single pair.
+    Designed for concurrent execution via ThreadPoolExecutor.
+    """
+    logger.info(f"📊 Collecting data for {pair}...")
+    pair_data = PairMarketData(pair=pair)
+
+    # 1. TradingView indicators (per-symbol screener/exchange)
+    pair_data.indicators = fetch_all_indicators(pair)
+
+    # 2. SMC analysis (on 1H and 15min candles)
+    for tf_key, yf_config in YF_TIMEFRAMES.items():
+        ohlcv_df = fetch_ohlcv(pair, yf_config["interval"], yf_config["period"])
+        if ohlcv_df is not None and len(ohlcv_df) >= 20:
+            pair_data.smc[tf_key] = analyze_smc(pair, ohlcv_df, tf_key)
+        else:
+            pair_data.smc[tf_key] = SMCData(pair=pair, timeframe=tf_key)
+
+    # 3. News events for this pair's currencies
+    pair_data.news_events = fetch_news_events([pair])
+
+    logger.info(f"✅ Data collection complete for {pair}")
+    return pair_data
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 6. COLLECT EVERYTHING (ALL PAIRS)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def collect_all_data(mt5: MT5Client, trade_logger=None) -> MarketDataPayload:
@@ -347,26 +381,46 @@ def collect_all_data(mt5: MT5Client, trade_logger=None) -> MarketDataPayload:
 
     # --- Per-pair data ---
     for pair in settings.PAIRS:
-        logger.info(f"📊 Collecting data for {pair}...")
-        pair_data = PairMarketData(pair=pair)
-
-        # 1. TradingView indicators
-        pair_data.indicators = fetch_all_indicators(pair)
-
-        # 2. SMC analysis (on 1H and 15min candles)
-        for tf_key, yf_config in YF_TIMEFRAMES.items():
-            ohlcv_df = fetch_ohlcv(pair, yf_config["interval"], yf_config["period"])
-            if ohlcv_df is not None and len(ohlcv_df) >= 20:
-                pair_data.smc[tf_key] = analyze_smc(pair, ohlcv_df, tf_key)
-            else:
-                pair_data.smc[tf_key] = SMCData(pair=pair, timeframe=tf_key)
-
-        # 3. News events for this pair's currencies
-        pair_data.news_events = fetch_news_events([pair])
-
+        pair_data = collect_pair_data(pair)
         payload.pairs[pair] = pair_data
 
     logger.info(f"✅ Data collection complete for {len(settings.PAIRS)} pairs")
+    return payload
+
+
+def collect_single_pair_data(
+    pair: str,
+    mt5: MT5Client,
+    trade_logger=None,
+) -> MarketDataPayload:
+    """
+    Collect market data for a SINGLE pair + account context.
+    Used by the concurrent per-pair analysis pipeline.
+    """
+    payload = MarketDataPayload(
+        timestamp=datetime.now(pytz.UTC).isoformat(),
+    )
+
+    # Account info
+    account = mt5.get_account_info()
+    if account:
+        payload.account_balance = account.balance
+        payload.account_equity = account.equity
+        payload.daily_pnl = account.profit
+    else:
+        logger.warning("Could not fetch MT5 account info — using defaults")
+
+    payload.open_positions = mt5.get_positions()
+
+    if trade_logger:
+        today_trades = trade_logger.get_today_trades()
+        payload.trades_today = today_trades
+        payload.trades_today_count = len(today_trades)
+
+    # Only collect data for this one pair
+    pair_data = collect_pair_data(pair)
+    payload.pairs[pair] = pair_data
+
     return payload
 
 
