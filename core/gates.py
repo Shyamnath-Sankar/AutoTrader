@@ -25,69 +25,17 @@ from core.models import GateResult
 
 def check_session_gate() -> GateResult:
     """
-    Check if we are in an active trading session (London or New York).
-    Weekends are also rejected.
+    Check if we are in an active trading session.
+    DISABLED for crypto — markets are 24/7.
     """
     now_utc = datetime.now(pytz.UTC)
     hour = now_utc.hour
-    weekday = now_utc.weekday()  # 0=Mon, 6=Sun
 
-    # Reject weekends
-    if weekday >= 5:
-        # Calculate minutes until Monday 07:00 UTC
-        days_until_monday = 7 - weekday
-        next_monday = now_utc.replace(
-            hour=settings.LONDON_OPEN, minute=0, second=0, microsecond=0
-        ) + timedelta(days=days_until_monday)
-        skip_min = int((next_monday - now_utc).total_seconds() / 60)
-        return GateResult(
-            gate_name="session",
-            passed=False,
-            skip_minutes=skip_min,
-            reason=f"Weekend — market closed until Monday {settings.LONDON_OPEN}:00 UTC",
-        )
-
-    # Check if within London or NY session
-    in_london = settings.LONDON_OPEN <= hour < settings.LONDON_CLOSE
-    in_ny = settings.NY_OPEN <= hour < settings.NY_CLOSE
-
-    if not (in_london or in_ny):
-        # Find next session open
-        if hour < settings.LONDON_OPEN:
-            # Before London open today
-            next_open = now_utc.replace(
-                hour=settings.LONDON_OPEN, minute=0, second=0, microsecond=0
-            )
-        elif hour >= settings.NY_CLOSE:
-            # After NY close — next session is tomorrow London
-            next_open = (now_utc + timedelta(days=1)).replace(
-                hour=settings.LONDON_OPEN, minute=0, second=0, microsecond=0
-            )
-        else:
-            # Between London close and NY open (shouldn't happen with overlap)
-            next_open = now_utc.replace(
-                hour=settings.NY_OPEN, minute=0, second=0, microsecond=0
-            )
-
-        skip_min = max(1, int((next_open - now_utc).total_seconds() / 60))
-        return GateResult(
-            gate_name="session",
-            passed=False,
-            skip_minutes=skip_min,
-            reason=f"Outside trading session (UTC {hour}:00). Next session at {next_open.strftime('%H:%M')} UTC",
-        )
-
-    session_name = []
-    if in_london:
-        session_name.append("London")
-    if in_ny:
-        session_name.append("New York")
-    session_str = " + ".join(session_name)
-
+    # Weekend + session checks DISABLED for crypto trading
     return GateResult(
         gate_name="session",
         passed=True,
-        reason=f"Active session: {session_str} (UTC {hour}:00)",
+        reason=f"Crypto mode — always active (UTC {hour}:00)",
     )
 
 

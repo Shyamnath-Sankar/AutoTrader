@@ -17,5 +17,8 @@ dependencies = [
     "smartmoneyconcepts>=0.0.20",
     "tradingview-ta>=3.3.0",
     "yfinance>=0.2.30",
-    "MetaTrader5>=5.0.45",
+    "metatrader5>=5.0.45",
+    "langchain>=1.2.15",
+    "langchain-openai>=1.1.12",
+    "langgraph>=1.1.6",
 ]

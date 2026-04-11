@@ -1,17 +1,19 @@
 """
 trader_brain.py — AI Agent 1: The Trader Brain.
 
-Uses OpenAI-compatible API to analyze market data and produce
-a scored trading decision (EXECUTE / WATCH / SKIP).
+Uses LangChain ChatOpenAI + PydanticOutputParser for robust structured output.
+Analyzes market data and produces a scored trading decision (EXECUTE / WATCH / SKIP).
 
 The prompt is built DYNAMICALLY from settings.py — change the max scores,
 sub-score allocations, or minimum thresholds there and the prompt adapts.
 """
 
-import json
+import re
 
 from loguru import logger
-from openai import OpenAI
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import PydanticOutputParser
 
 from config import settings
 from core.models import (
@@ -24,15 +26,26 @@ from services.data_collector import format_data_for_prompt
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# LLM CLIENT
+# LLM CLIENT (LangChain)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _get_llm_client() -> OpenAI:
-    """Create an OpenAI-compatible client from settings."""
-    return OpenAI(
+def _get_llm() -> ChatOpenAI:
+    """Create a LangChain ChatOpenAI instance from settings."""
+    return ChatOpenAI(
         api_key=settings.LLM_API_KEY,
         base_url=settings.LLM_BASE_URL,
+        model=settings.LLM_MODEL,
+        temperature=settings.LLM_TEMPERATURE,
+        max_tokens=settings.LLM_MAX_TOKENS,
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# OUTPUT PARSER
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Pydantic output parser for the TraderDecision schema
+_decision_parser = PydanticOutputParser(pydantic_object=TraderDecision)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -146,9 +159,6 @@ EXECUTE: Phase 1 ≥ {settings.PHASE1_MIN_REQUIRED}, Phase 2 ≥ {settings.PHASE
 
 WATCH: Setup is building but not ready yet — something is CLOSE to triggering
   → You MUST provide: next_check_minutes (how long to wait), next_check_reason (what you're waiting for)
-  → Examples: "RSI at 57, dropping 2pts/candle, need <50 → check in 8min"
-              "Price 6 pips from liquidity pool, moving toward it → check in 12min"
-              "ADX at 19, rising, need 20 → 4H closes in 45min → check in 46min"
 
 SKIP: No viable setup, market is unfavorable
   → Explain why; the bot will reschedule at default interval
@@ -164,38 +174,69 @@ Daily loss limit: 15% of account balance (dynamic)
 
 ═══ RESPONSE FORMAT ═══
 
-You MUST respond with ONLY valid JSON, no other text. Use this exact structure:
-
-{{
-  "decision": "EXECUTE" | "WATCH" | "SKIP",
-  "pair": "{target_pair or 'XAUUSD" | "USDJPY" | "EURUSD" | "GBPUSD" | null'}",
-  "direction": "BUY" | "SELL" | null,
-  "phase1_scores": {{
-    "regime": <0-{settings.P1_REGIME_POINTS}>,
-    "session": <0-{settings.P1_SESSION_POINTS}>,
-    "news": <0-{settings.P1_NEWS_POINTS}>,
-    "weekly_4h_bias": <0-{settings.P1_WEEKLY_4H_BIAS_POINTS}>,
-    "trend_1h": <0-{settings.P1_1H_TREND_POINTS}>,
-    "trigger_15m": <0-{settings.P1_15MIN_TRIGGER_POINTS}>
-  }},
-  "phase1_total": <sum>,
-  "phase2_scores": {{
-    "liquidity_sweep": <0-{settings.P2_LIQUIDITY_SWEEP_POINTS}>,
-    "order_block": <0-{settings.P2_ORDER_BLOCK_POINTS}>,
-    "fvg": <0-{settings.P2_FVG_POINTS}>,
-    "bos_choch": <0-{settings.P2_BOS_CHOCH_POINTS}>
-  }},
-  "phase2_total": <sum>,
-  "total_score": <phase1_total + phase2_total>,
-  "sl_pips": <integer or null>,
-  "tp_pips": <integer or null>,
-  "rr_ratio": <float or null>,
-  "reasoning": "<your detailed analysis — why each score, what you see in the data>",
-  "next_check_minutes": <integer or null>,
-  "next_check_reason": "<what you're waiting for, if WATCH>"
-}}"""
+You MUST respond with ONLY valid JSON — no markdown, no commentary, no preamble.
+{{format_instructions}}"""
 
     return prompt
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ANALYZE SINGLE PAIR (primary mode — used by LangGraph)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def analyze_pair(market_data: MarketDataPayload, pair: str) -> TraderDecision:
+    """
+    Analyze a SINGLE pair using the AI via LangChain.
+    Used by the LangGraph brain node.
+    """
+    llm = _get_llm()
+
+    # Build format instructions from Pydantic parser
+    format_instructions = _decision_parser.get_format_instructions()
+
+    # Build system prompt with format instructions baked in
+    system_prompt = _build_system_prompt(target_pair=pair)
+    system_prompt = system_prompt.replace("{format_instructions}", format_instructions)
+
+    market_context = format_data_for_prompt(market_data)
+
+    user_message = (
+        f"Analyze the following market data for {pair} and score the setup.\n"
+        f"Focus ONLY on {pair}.\n\n{market_context}"
+    )
+
+    logger.info(f"🧠 Sending {pair} data to AI Trader Brain (LangChain)...")
+
+    try:
+        messages = [
+            ("system", system_prompt),
+            ("human", user_message),
+        ]
+        response = llm.invoke(messages)
+
+        raw_content = response.content.strip()
+        logger.debug(f"AI raw response: {raw_content[:500]}...")
+
+        # Extract JSON robustly — handle reasoning blocks, markdown, chatty preambles
+        decision = _parse_response(raw_content)
+
+        # Ensure pair is set correctly
+        if decision.decision == "EXECUTE" and not decision.pair:
+            decision.pair = pair
+
+        # Validate decision
+        decision = _validate_decision(decision)
+
+        _log_decision(decision)
+        return decision
+
+    except Exception as e:
+        logger.error(f"AI Trader Brain error: {e}")
+        return TraderDecision(
+            decision="SKIP",
+            reasoning=f"AI analysis failed: {e}",
+            next_check_minutes=settings.DEFAULT_SCAN_INTERVAL_MINUTES,
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -207,135 +248,37 @@ def analyze(market_data: MarketDataPayload) -> TraderDecision:
     Send market data to the AI and get a scored trading decision.
     Returns a TraderDecision with decision, scores, and reasoning.
     """
-    client = _get_llm_client()
+    llm = _get_llm()
+
+    format_instructions = _decision_parser.get_format_instructions()
     system_prompt = _build_system_prompt()
+    system_prompt = system_prompt.replace("{format_instructions}", format_instructions)
+
     market_context = format_data_for_prompt(market_data)
 
-    user_message = f"""Analyze the following market data and score the setup.
-Evaluate ALL pairs ({', '.join(settings.PAIRS)}) and pick the best setup if any.
-If multiple pairs look good, choose the highest-conviction one.
+    user_message = (
+        f"Analyze the following market data and score the setup.\n"
+        f"Evaluate ALL pairs ({', '.join(settings.PAIRS)}) and pick the best setup if any.\n\n"
+        f"{market_context}"
+    )
 
-{market_context}"""
+    logger.info("🧠 Sending data to AI Trader Brain (LangChain)...")
 
-    logger.info("🧠 Sending data to AI Trader Brain...")
-
-    return _call_llm(client, system_prompt, user_message)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# ANALYZE SINGLE PAIR (concurrent mode)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def analyze_pair(market_data: MarketDataPayload, pair: str) -> TraderDecision:
-    """
-    Analyze a SINGLE pair using the AI.
-    Used by the concurrent per-pair analysis pipeline.
-    """
-    client = _get_llm_client()
-    system_prompt = _build_system_prompt(target_pair=pair)
-    market_context = format_data_for_prompt(market_data)
-
-    user_message = f"""Analyze the following market data for {pair} and score the setup.
-Focus ONLY on {pair}.
-
-{market_context}"""
-
-    logger.info(f"🧠 Sending {pair} data to AI Trader Brain...")
-
-    decision = _call_llm(client, system_prompt, user_message)
-
-    # Ensure pair is set correctly
-    if decision.decision == "EXECUTE" and not decision.pair:
-        decision.pair = pair
-
-    return decision
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# LLM CALL (shared logic)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _call_llm(
-    client: OpenAI,
-    system_prompt: str,
-    user_message: str,
-) -> TraderDecision:
-    """Call the LLM and parse the response into a TraderDecision."""
     try:
-        response = client.chat.completions.create(
-            model=settings.LLM_MODEL,
-            temperature=settings.LLM_TEMPERATURE,
-            max_tokens=settings.LLM_MAX_TOKENS,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message},
-            ],
-        )
+        messages = [
+            ("system", system_prompt),
+            ("human", user_message),
+        ]
+        response = llm.invoke(messages)
 
-        raw_content = response.choices[0].message.content.strip()
+        raw_content = response.content.strip()
         logger.debug(f"AI raw response: {raw_content[:500]}...")
 
-        # Parse JSON from response (handle markdown code blocks if present)
-        json_str = raw_content
-        if json_str.startswith("```"):
-            # Strip markdown code block
-            lines = json_str.split("\n")
-            json_lines = []
-            in_block = False
-            for line in lines:
-                if line.strip().startswith("```"):
-                    in_block = not in_block
-                    continue
-                if in_block or not line.strip().startswith("```"):
-                    json_lines.append(line)
-            json_str = "\n".join(json_lines)
-
-        data = json.loads(json_str)
-
-        # Build TraderDecision from parsed JSON
-        decision = TraderDecision(
-            decision=data.get("decision", "SKIP").upper(),
-            pair=data.get("pair"),
-            direction=data.get("direction"),
-            phase1_scores=Phase1Scores(
-                regime=data.get("phase1_scores", {}).get("regime", 0),
-                session=data.get("phase1_scores", {}).get("session", 0),
-                news=data.get("phase1_scores", {}).get("news", 0),
-                weekly_4h_bias=data.get("phase1_scores", {}).get("weekly_4h_bias", 0),
-                trend_1h=data.get("phase1_scores", {}).get("trend_1h", 0),
-                trigger_15m=data.get("phase1_scores", {}).get("trigger_15m", 0),
-            ),
-            phase1_total=data.get("phase1_total", 0),
-            phase2_scores=Phase2Scores(
-                liquidity_sweep=data.get("phase2_scores", {}).get("liquidity_sweep", 0),
-                order_block=data.get("phase2_scores", {}).get("order_block", 0),
-                fvg=data.get("phase2_scores", {}).get("fvg", 0),
-                bos_choch=data.get("phase2_scores", {}).get("bos_choch", 0),
-            ),
-            phase2_total=data.get("phase2_total", 0),
-            total_score=data.get("total_score", 0),
-            sl_pips=data.get("sl_pips"),
-            tp_pips=data.get("tp_pips"),
-            rr_ratio=data.get("rr_ratio"),
-            reasoning=data.get("reasoning", ""),
-            next_check_minutes=data.get("next_check_minutes"),
-            next_check_reason=data.get("next_check_reason"),
-        )
-
-        # Validate decision logic
+        decision = _parse_response(raw_content)
         decision = _validate_decision(decision)
-
         _log_decision(decision)
         return decision
 
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse AI response as JSON: {e}")
-        logger.error(f"Raw response: {raw_content[:1000]}")
-        return TraderDecision(
-            decision="SKIP",
-            reasoning=f"AI response was not valid JSON: {e}",
-            next_check_minutes=settings.DEFAULT_SCAN_INTERVAL_MINUTES,
-        )
     except Exception as e:
         logger.error(f"AI Trader Brain error: {e}")
         return TraderDecision(
@@ -343,6 +286,109 @@ def _call_llm(
             reasoning=f"AI analysis failed: {e}",
             next_check_minutes=settings.DEFAULT_SCAN_INTERVAL_MINUTES,
         )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RESPONSE PARSING — robust JSON extraction
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _parse_response(raw_content: str) -> TraderDecision:
+    """
+    Parse the AI's raw text response into a TraderDecision.
+
+    Handles reasoning models (e.g. Nemotron) that produce:
+      - <think>...</think> blocks before the JSON
+      - Long chain-of-thought preamble text
+      - Markdown ```json ... ``` blocks
+      - Truncated JSON (from max_tokens cutoff)
+    """
+    import json
+
+    # Step 1: Strip <think>...</think> reasoning blocks (Nemotron, DeepSeek, etc.)
+    cleaned = re.sub(r"<think>.*?</think>", "", raw_content, flags=re.DOTALL).strip()
+    # Also handle unclosed <think> (truncated response)
+    cleaned = re.sub(r"<think>.*", "", cleaned, flags=re.DOTALL).strip()
+
+    if not cleaned:
+        # Entire response was reasoning — no JSON at all
+        logger.error("AI response was entirely reasoning (no JSON found)")
+        logger.error(f"Raw response: {raw_content[:500]}")
+        return TraderDecision(
+            decision="SKIP",
+            reasoning="AI response contained only reasoning, no JSON output",
+            next_check_minutes=settings.DEFAULT_SCAN_INTERVAL_MINUTES,
+        )
+
+    json_str = cleaned
+
+    # Step 2: Try markdown code block
+    block_match = re.search(r"```(?:json)?\s*(.*?)\s*```", cleaned, re.DOTALL)
+    if block_match:
+        json_str = block_match.group(1)
+    else:
+        # Step 3: Find the first { ... last } (greedy)
+        obj_match = re.search(r"(\{.*\})", cleaned, re.DOTALL)
+        if obj_match:
+            json_str = obj_match.group(1)
+
+    # Step 4: Try to parse
+    try:
+        data = json.loads(json_str)
+    except json.JSONDecodeError:
+        # Step 5: Try to fix truncated JSON (missing closing braces)
+        # Count unmatched braces and close them
+        open_braces = json_str.count("{") - json_str.count("}")
+        if open_braces > 0:
+            fixed = json_str + "}" * open_braces
+            try:
+                data = json.loads(fixed)
+                logger.warning(f"Fixed truncated JSON by adding {open_braces} closing brace(s)")
+            except json.JSONDecodeError as e2:
+                logger.error(f"Failed to parse AI response as JSON: {e2}")
+                logger.error(f"Cleaned response: {cleaned[:500]}")
+                return TraderDecision(
+                    decision="SKIP",
+                    reasoning=f"AI response was not valid JSON: {e2}",
+                    next_check_minutes=settings.DEFAULT_SCAN_INTERVAL_MINUTES,
+                )
+        else:
+            logger.error(f"Failed to parse AI response as JSON")
+            logger.error(f"Cleaned response: {cleaned[:500]}")
+            return TraderDecision(
+                decision="SKIP",
+                reasoning="AI response was not valid JSON",
+                next_check_minutes=settings.DEFAULT_SCAN_INTERVAL_MINUTES,
+            )
+
+    # Build TraderDecision from parsed JSON
+    return TraderDecision(
+        decision=data.get("decision", "SKIP").upper(),
+        pair=data.get("pair"),
+        direction=data.get("direction"),
+        phase1_scores=Phase1Scores(
+            regime=data.get("phase1_scores", {}).get("regime", 0),
+            session=data.get("phase1_scores", {}).get("session", 0),
+            news=data.get("phase1_scores", {}).get("news", 0),
+            weekly_4h_bias=data.get("phase1_scores", {}).get("weekly_4h_bias", 0),
+            trend_1h=data.get("phase1_scores", {}).get("trend_1h", 0),
+            trigger_15m=data.get("phase1_scores", {}).get("trigger_15m", 0),
+        ),
+        phase1_total=data.get("phase1_total", 0),
+        phase2_scores=Phase2Scores(
+            liquidity_sweep=data.get("phase2_scores", {}).get("liquidity_sweep", 0),
+            order_block=data.get("phase2_scores", {}).get("order_block", 0),
+            fvg=data.get("phase2_scores", {}).get("fvg", 0),
+            bos_choch=data.get("phase2_scores", {}).get("bos_choch", 0),
+        ),
+        phase2_total=data.get("phase2_total", 0),
+        total_score=data.get("total_score", 0),
+        sl_pips=data.get("sl_pips"),
+        tp_pips=data.get("tp_pips"),
+        rr_ratio=data.get("rr_ratio"),
+        reasoning=data.get("reasoning", ""),
+        next_check_minutes=data.get("next_check_minutes"),
+        next_check_reason=data.get("next_check_reason"),
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

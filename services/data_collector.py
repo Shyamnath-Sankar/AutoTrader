@@ -432,9 +432,9 @@ def format_data_for_prompt(payload: MarketDataPayload) -> str:
     lines = []
     lines.append("═══ MARKET DATA SNAPSHOT ═══")
     lines.append(f"Timestamp: {payload.timestamp}")
-    lines.append(f"Account Balance: ${payload.account_balance:.2f}")
-    lines.append(f"Account Equity: ${payload.account_equity:.2f}")
-    lines.append(f"Daily P&L: ${payload.daily_pnl:.2f}")
+    lines.append(f"Account Balance: ${payload.account_balance or 0:.2f}")
+    lines.append(f"Account Equity: ${payload.account_equity or 0:.2f}")
+    lines.append(f"Daily P&L: ${payload.daily_pnl or 0:.2f}")
     lines.append(f"Open Positions: {len(payload.open_positions)}")
     lines.append(f"Trades Today: {payload.trades_today_count}")
 
@@ -443,7 +443,7 @@ def format_data_for_prompt(payload: MarketDataPayload) -> str:
         for pos in payload.open_positions:
             lines.append(
                 f"  {pos.get('symbol', '?')} {pos.get('type', '?')} "
-                f"{pos.get('volume', 0)} lots | P&L: ${pos.get('profit', 0):.2f}"
+                f"{pos.get('volume', 0)} lots | P&L: ${pos.get('profit') or 0:.2f}"
             )
 
     if payload.trades_today:
@@ -453,7 +453,7 @@ def format_data_for_prompt(payload: MarketDataPayload) -> str:
                 f"  {t.get('pair', '?')} {t.get('direction', '?')} | "
                 f"Score: {t.get('total_score', '?')} | "
                 f"Result: {t.get('result', 'pending')} | "
-                f"P&L: ${t.get('pnl', 0):.2f}"
+                f"P&L: ${t.get('pnl') or 0:.2f}"
             )
 
     for pair, pair_data in payload.pairs.items():
@@ -465,12 +465,12 @@ def format_data_for_prompt(payload: MarketDataPayload) -> str:
         for tf_key, ind in pair_data.indicators.items():
             lines.append(f"\n── {pair} {tf_key.upper()} Indicators ──")
             lines.append(f"  Close: {ind.close}  |  High: {ind.high}  |  Low: {ind.low}")
-            lines.append(f"  RSI: {ind.rsi:.1f}" if ind.rsi else "  RSI: N/A")
+            lines.append(f"  RSI: {ind.rsi:.1f}" if ind.rsi is not None else "  RSI: N/A")
             lines.append(f"  EMA20: {ind.ema20}  |  EMA50: {ind.ema50}  |  EMA200: {ind.ema200}")
             lines.append(f"  MACD: {ind.macd}  |  Signal: {ind.macd_signal}  |  Hist: {ind.macd_hist}")
             lines.append(f"  BB Upper: {ind.bb_upper}  |  Basis: {ind.bb_basis}  |  Lower: {ind.bb_lower}")
             lines.append(f"  ADX: {ind.adx}  |  +DI: {ind.adx_plus_di}  |  -DI: {ind.adx_minus_di}")
-            if ind.supertrend:
+            if ind.supertrend is not None:
                 lines.append(f"  Supertrend: {ind.supertrend}")
 
         # SMC data per timeframe
@@ -495,9 +495,9 @@ def format_data_for_prompt(payload: MarketDataPayload) -> str:
                 lines.append(
                     f"  Sweep Type: {smc_d.liquidity_sweep_type} @ {smc_d.liquidity_level}"
                 )
-            if smc_d.current_retracement_pct:
+            if smc_d.current_retracement_pct is not None:
                 lines.append(f"  Current Retracement: {smc_d.current_retracement_pct:.1f}%")
-            if smc_d.deepest_retracement_pct:
+            if smc_d.deepest_retracement_pct is not None:
                 lines.append(f"  Deepest Retracement: {smc_d.deepest_retracement_pct:.1f}%")
 
         # News
@@ -510,3 +510,4 @@ def format_data_for_prompt(payload: MarketDataPayload) -> str:
                 )
 
     return "\n".join(lines)
+

@@ -4,7 +4,7 @@ main.py — Entry point & Orchestrator for the Smart Money Trading Bot.
 This is the main daemon that:
   1. Connects to MT5 natively (login/password/server)
   2. Fetches balance, computes dynamic 5% risk per trade
-  3. Analyzes ALL pairs concurrently (ThreadPoolExecutor)
+  3. Runs each pair through a LangGraph pipeline: Gates → Data → Brain → Risk → Execute
   4. If one pair has no trade, the others still run independently
   5. Routes decisions (EXECUTE → Risk → MT5, WATCH → Schedule, SKIP → Log)
   6. Loops forever on weekdays
@@ -23,7 +23,6 @@ if sys.platform == "win32":
         pass
 import time
 import signal
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 import pytz
@@ -44,13 +43,11 @@ logger.add(settings.LOG_FILE, level="DEBUG", rotation="10 MB", retention="30 day
 
 # ── Now import bot modules ───────────────────────────────────────────────────
 
-from core.gates import run_all_gates, run_pair_gates
-from services.data_collector import collect_pair_data, collect_single_pair_data
-from agents.trader_brain import analyze_pair
-from agents.risk_engine import evaluate, compute_risk_limits
+from agents.risk_engine import compute_risk_limits
 from services.mt5_client import MT5Client
 from services.trade_logger import TradeLogger
 from core.scheduler import BotScheduler
+from graph.trading_graph import build_trading_graph, set_services
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -61,6 +58,10 @@ mt5 = MT5Client()
 trade_log = TradeLogger()
 bot_scheduler = BotScheduler()
 shutdown_requested = False
+
+# Build the LangGraph pipeline
+set_services(mt5, trade_log)
+trading_graph = build_trading_graph()
 
 
 def signal_handler(signum, frame):
@@ -75,132 +76,16 @@ signal.signal(signal.SIGTERM, signal_handler)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# PER-PAIR ANALYSIS PIPELINE
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def analyze_single_pair(
-    pair: str,
-    balance: float,
-    today_stats: dict,
-) -> dict:
-    """
-    Run the full pipeline for a SINGLE pair:
-      Gates → Data → Brain → Risk → Result
-
-    Returns a dict with the result status and details.
-    Designed for concurrent execution in ThreadPoolExecutor.
-    """
-    result = {
-        "pair": pair,
-        "status": "SKIP",  # SKIP, WATCH, EXECUTE, REJECTED, ERROR
-        "decision": None,
-        "risk_result": None,
-        "order_result": None,
-        "error": None,
-    }
-
-    try:
-        # ── Step 1: Per-pair gates ──
-        logger.info(f"\n📋 [{pair}] Running gates...")
-        gates_passed, gate_results = run_pair_gates(pair)
-
-        if not gates_passed:
-            failed_gate = next((g for g in gate_results if not g.passed), None)
-            result["status"] = "GATE_FAILED"
-            result["error"] = failed_gate.reason if failed_gate else "Gate failed"
-            logger.info(f"🚫 [{pair}] Gate failed: {result['error']}")
-            return result
-
-        # ── Step 2: Collect pair data ──
-        logger.info(f"📊 [{pair}] Collecting market data...")
-        market_data = collect_single_pair_data(pair, mt5, trade_log)
-
-        # ── Step 3: AI analysis for this pair ──
-        logger.info(f"🧠 [{pair}] AI Trader Brain analyzing...")
-        decision = analyze_pair(market_data, pair)
-        result["decision"] = decision
-
-        if decision.decision == "SKIP":
-            result["status"] = "SKIP"
-            logger.info(f"🔴 [{pair}] Decision: SKIP — {decision.reasoning[:100]}")
-            trade_log.log_decision(decision)
-            return result
-
-        if decision.decision == "WATCH":
-            result["status"] = "WATCH"
-            logger.info(f"🟡 [{pair}] Decision: WATCH — check in {decision.next_check_minutes} min")
-            trade_log.log_decision(decision)
-            return result
-
-        if decision.decision == "EXECUTE":
-            # ── Step 4: Risk Engine ──
-            logger.info(f"🟢 [{pair}] Decision: EXECUTE — running risk engine...")
-
-            risk_result = evaluate(
-                decision=decision,
-                mt5=mt5,
-                trades_today_count=today_stats["executed_count"],
-                daily_pnl=today_stats["total_pnl"],
-                balance=balance,
-            )
-            result["risk_result"] = risk_result
-
-            if not risk_result.approved:
-                result["status"] = "REJECTED"
-                logger.info(f"🚫 [{pair}] Risk REJECTED: {risk_result.reason}")
-                trade_log.log_decision(decision, risk=risk_result)
-                return result
-
-            # ── Step 5: Execute on MT5 ──
-            result["status"] = "EXECUTE"
-            logger.info(f"✅ [{pair}] Risk APPROVED — executing on MT5...")
-
-            if settings.MODE == "demo":
-                logger.info(f"🏷️  [{pair}] MODE: DEMO — placing trade on demo account")
-
-            order_result = mt5.place_market_order(
-                symbol=decision.pair,
-                direction=decision.direction,
-                volume=risk_result.lots,
-                stop_loss=risk_result.sl_price,
-                take_profit=risk_result.tp_price,
-            )
-            result["order_result"] = order_result
-
-            if order_result.success:
-                logger.info(
-                    f"🎯 [{pair}] Trade EXECUTED! Ticket #{order_result.order} | "
-                    f"{decision.direction} {risk_result.lots} lots {pair} | "
-                    f"Entry: {order_result.price} | SL: {risk_result.sl_price} | TP: {risk_result.tp_price}"
-                )
-            else:
-                logger.error(f"❌ [{pair}] Trade FAILED: {order_result.message} (code: {order_result.error_code})")
-                result["status"] = "TRADE_FAILED"
-
-            trade_log.log_decision(decision, risk=risk_result, order=order_result)
-            return result
-
-    except Exception as e:
-        result["status"] = "ERROR"
-        result["error"] = str(e)
-        logger.error(f"❌ [{pair}] Pipeline error: {e}")
-        return result
-
-    return result
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# MAIN ANALYSIS CYCLE (CONCURRENT MULTI-PAIR)
+# MAIN ANALYSIS CYCLE (LANGGRAPH MULTI-PAIR)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def run_analysis_cycle():
     """
-    Run one complete analysis cycle across ALL pairs concurrently:
+    Run one complete analysis cycle across ALL pairs via LangGraph:
       1. Fetch balance once
-      2. Launch ThreadPoolExecutor for all pairs
+      2. For each pair, invoke the LangGraph pipeline
       3. Each pair runs: Gates → Data → Brain → Risk → Execute
-      4. If one pair yields SKIP/WATCH, others still run independently
-      5. Log results and schedule next scan
+      4. Log results and schedule next scan
     """
     global shutdown_requested
     if shutdown_requested:
@@ -245,33 +130,52 @@ def run_analysis_cycle():
         bot_scheduler.schedule_default_scan()
         return
 
-    # ── Run all pairs concurrently ──
+    # ── Run each pair through the LangGraph pipeline ──
     results = []
-    max_workers = min(len(settings.PAIRS), 4)  # cap at 4 threads
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {
-            executor.submit(
-                analyze_single_pair,
-                pair,
-                balance,
-                today_stats,
-            ): pair
-            for pair in settings.PAIRS
-        }
+    for i, pair in enumerate(settings.PAIRS):
+        if shutdown_requested:
+            break
+        if i > 0:
+            time.sleep(2)  # stagger pairs to avoid TradingView rate limit
 
-        for future in as_completed(futures):
-            pair = futures[future]
-            try:
-                result = future.result(timeout=300)  # 5 min timeout per pair
-                results.append(result)
-            except Exception as e:
-                logger.error(f"❌ [{pair}] Thread error: {e}")
-                results.append({
-                    "pair": pair,
-                    "status": "ERROR",
-                    "error": str(e),
-                })
+        logger.info(f"\n🔗 [{pair}] Invoking LangGraph pipeline...")
+
+        try:
+            # Build initial state for this pair
+            initial_state = {
+                "pair": pair,
+                "balance": balance,
+                "today_stats": today_stats,
+                "gates_passed": False,
+                "gate_reason": "",
+                "market_data": None,
+                "decision": None,
+                "risk_result": None,
+                "order_result": None,
+                "status": "PENDING",
+                "error": None,
+            }
+
+            # Invoke the compiled LangGraph
+            final_state = trading_graph.invoke(initial_state)
+
+            results.append({
+                "pair": pair,
+                "status": final_state.get("status", "ERROR"),
+                "decision": final_state.get("decision"),
+                "risk_result": final_state.get("risk_result"),
+                "order_result": final_state.get("order_result"),
+                "error": final_state.get("error"),
+            })
+
+        except Exception as e:
+            logger.error(f"❌ [{pair}] LangGraph pipeline error: {e}")
+            results.append({
+                "pair": pair,
+                "status": "ERROR",
+                "error": str(e),
+            })
 
     # ── Summarize results ──
     logger.info(f"\n{'─' * 70}")
@@ -317,15 +221,19 @@ def run_analysis_cycle():
     # ── Schedule next scan ──
     # If any pair is in WATCH, use its next_check_minutes
     if watched:
-        min_watch_minutes = min(
+        watch_minutes = [
             r["decision"].next_check_minutes
             for r in watched
             if r.get("decision") and r["decision"].next_check_minutes
-        )
-        bot_scheduler.schedule_analysis(
-            minutes_from_now=min_watch_minutes,
-            reason=f"Watching {len(watched)} pair(s)",
-        )
+        ]
+        if watch_minutes:
+            min_watch_minutes = min(watch_minutes)
+            bot_scheduler.schedule_analysis(
+                minutes_from_now=min_watch_minutes,
+                reason=f"Watching {len(watched)} pair(s)",
+            )
+        else:
+            bot_scheduler.schedule_default_scan()
     else:
         bot_scheduler.schedule_default_scan()
 
@@ -345,7 +253,7 @@ def print_banner():
 ╔══════════════════════════════════════════════════════════════╗
 ║              SMART MONEY TRADING BOT                        ║
 ║              ──────────────────────                         ║
-║  AI-Powered · ICT/SMC · Two-Phase Scoring                   ║
+║  AI-Powered · ICT/SMC · LangGraph Pipeline                   ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  Mode:       {mode:<15}                                     ║
 ║  Pairs:      {pairs:<45}║
@@ -355,7 +263,7 @@ def print_banner():
 ║  Total min:  {total_min}/80 to EXECUTE                              ║
 ║  Risk:       {risk_pct}% of balance ({risk_usd})/trade             ║
 ║  Daily cap:  {daily_pct}% of balance ({daily_usd})/day             ║
-║  Max trades: {max_trades}/day · Concurrent analysis                  ║
+║  Max trades: {max_trades}/day · LangGraph orchestration              ║
 ╚══════════════════════════════════════════════════════════════╝
 """.format(
         mode=settings.MODE.upper(),
@@ -431,6 +339,9 @@ def check_prerequisites() -> bool:
             f"lots=[{sym_config['min_lot']}-{sym_config['max_lot']}] | "
             f"exchange={sym_config['exchange']}"
         )
+
+    # Check LangGraph is ready
+    logger.info("✅ LangGraph pipeline compiled (Gates → Data → Brain → Risk → Execute)")
 
     return ok
 

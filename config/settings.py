@@ -37,15 +37,23 @@ P2_BOS_CHOCH_POINTS = 3         # BOS / CHoCH confirmation
 # TRADING PAIRS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-PAIRS = ["XAUUSD", "USDJPY", "EURUSD", "GBPUSD"]
-SCREENER = "forex"
-EXCHANGE = "OANDA"
+PAIRS = ["BTCUSD"]
+SCREENER = "crypto"
+EXCHANGE = "BINANCE"
 
 # Per-symbol pip/lot configuration
 # pip_size: smallest price increment counted as 1 pip
 # pip_value_micro: dollar value per pip at 0.01 lot (micro lot)
 # min_lot / max_lot: broker lot bounds
 SYMBOL_CONFIG = {
+    "BTCUSD": {
+        "pip_size": 0.01,
+        "pip_value_micro": 0.01,
+        "min_lot": 0.01,
+        "max_lot": 5.0,
+        "screener": "crypto",
+        "exchange": "BINANCE",
+    },
     "XAUUSD": {
         "pip_size": 0.01,
         "pip_value_micro": 0.01,
@@ -82,6 +90,7 @@ SYMBOL_CONFIG = {
 
 # yfinance symbol mapping
 YFINANCE_SYMBOLS = {
+    "BTCUSD": "BTC-USD",
     "XAUUSD": "GC=F",
     "EURUSD": "EURUSD=X",
     "GBPUSD": "GBPUSD=X",
@@ -93,6 +102,7 @@ YFINANCE_SYMBOLS = {
 
 # Currency extraction from pair (for news filtering)
 PAIR_CURRENCIES = {
+    "BTCUSD": ["BTC", "USD"],
     "XAUUSD": ["XAU", "USD"],
     "EURUSD": ["EUR", "USD"],
     "GBPUSD": ["GBP", "USD"],

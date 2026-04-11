@@ -14,9 +14,11 @@ Checks:
 """
 
 import json
+import re
 
 from loguru import logger
-from openai import OpenAI
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
 
 from config import settings
 from core.models import PriceData, RiskApproval, TraderDecision
@@ -337,11 +339,14 @@ def evaluate(
 
     actual_rr = tp_pips / decision.sl_pips if decision.sl_pips > 0 else 0
 
-    # ── AI validation ──
+    # ── AI validation (LangChain) ──
     try:
-        client = OpenAI(
+        llm = ChatOpenAI(
             api_key=settings.LLM_API_KEY,
             base_url=settings.LLM_BASE_URL,
+            model=settings.LLM_MODEL,
+            temperature=0.1,  # very low for risk decisions
+            max_tokens=500,
         )
 
         pip_value_micro = sym_config["pip_value_micro"]
@@ -373,26 +378,43 @@ Daily Stats:
 
 Trader Brain Reasoning: {decision.reasoning[:500]}"""
 
-        response = client.chat.completions.create(
-            model=settings.LLM_MODEL,
-            temperature=0.1,  # very low for risk decisions
-            max_tokens=500,
-            messages=[
-                {"role": "system", "content": _build_risk_prompt(max_loss)},
-                {"role": "user", "content": risk_context},
-            ],
-        )
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", _build_risk_prompt(max_loss)),
+            ("human", "{risk_context}"),
+        ])
 
-        raw = response.choices[0].message.content.strip()
+        chain = prompt | llm
+        response = chain.invoke({"risk_context": risk_context})
+        raw = response.content.strip()
 
-        # Parse JSON
-        json_str = raw
-        if json_str.startswith("```"):
-            lines = json_str.split("\n")
-            json_lines = [l for l in lines if not l.strip().startswith("```")]
-            json_str = "\n".join(json_lines)
+        # Strip <think>...</think> reasoning blocks (Nemotron, DeepSeek, etc.)
+        cleaned = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
+        cleaned = re.sub(r"<think>.*", "", cleaned, flags=re.DOTALL).strip()
 
-        data = json.loads(json_str)
+        if not cleaned:
+            logger.error("Risk AI response was entirely reasoning (no JSON)")
+            raise ValueError("No JSON in risk AI response")
+
+        # Robust JSON extraction
+        json_str = cleaned
+        block_match = re.search(r"```(?:json)?\s*(.*?)\s*```", cleaned, re.DOTALL)
+        if block_match:
+            json_str = block_match.group(1)
+        else:
+            obj_match = re.search(r"(\{.*\})", cleaned, re.DOTALL)
+            if obj_match:
+                json_str = obj_match.group(1)
+
+        # Try parse, with truncated JSON fix
+        try:
+            data = json.loads(json_str)
+        except json.JSONDecodeError:
+            open_braces = json_str.count("{") - json_str.count("}")
+            if open_braces > 0:
+                data = json.loads(json_str + "}" * open_braces)
+                logger.warning(f"Fixed truncated risk JSON by adding {open_braces} closing brace(s)")
+            else:
+                raise
 
         approval = RiskApproval(
             approved=data.get("approved", False),
