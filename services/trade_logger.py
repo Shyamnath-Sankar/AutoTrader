@@ -2,10 +2,10 @@
 trade_logger.py — Logs all trade decisions and results to data/trades.json.
 
 Provides:
-  - log_decision(): log any AI decision (EXECUTE, WATCH, SKIP)
+  - log_decision(): log any AI decision (TAKE, SCHEDULE, LEAVE)
   - log_execution(): log trade execution result from MT5
   - get_today_trades(): get today's trade history for AI context
-  - get_today_stats(): get today's trade count + P&L
+  - get_today_stats(): get today's trade count + P&L + attempt count
 """
 
 import json
@@ -54,7 +54,7 @@ class TradeLogger:
         self._write_all(records)
 
     # ═══════════════════════════════════════════════════════════════════════
-    # LOG A DECISION (any decision — EXECUTE, WATCH, SKIP)
+    # LOG A DECISION (any decision — TAKE, SCHEDULE, LEAVE)
     # ═══════════════════════════════════════════════════════════════════════
 
     def log_decision(
@@ -80,9 +80,6 @@ class TradeLogger:
             phase2_total=decision.phase2_total,
             total_score=decision.total_score,
             reasoning=decision.reasoning,
-            sl_pips=decision.sl_pips or 0,
-            tp_pips=decision.tp_pips or 0,
-            rr_ratio=decision.rr_ratio or 0.0,
         )
 
         # Add risk engine results
@@ -93,6 +90,8 @@ class TradeLogger:
             record.entry_price = risk.entry_price
             record.sl_price = risk.sl_price
             record.tp_price = risk.tp_price
+            record.sl_pips = risk.sl_pips
+            record.tp_pips = risk.tp_pips
             record.rr_ratio = risk.rr_ratio
 
         # Add MT5 execution results
@@ -143,18 +142,63 @@ class TradeLogger:
         ]
 
     def get_today_stats(self) -> dict:
-        """Get today's trade count and total P&L."""
+        """
+        Get today's trade count, P&L, and attempt counts.
+
+        Returns:
+            dict with keys:
+              - total_decisions: all logged decisions today
+              - executed_count: risk-approved + successfully executed trades
+              - take_attempts: total TAKE decisions (approved + rejected)
+              - total_pnl: sum of P&L from executed trades
+              - wins / losses / pending: execution result counts
+              - rejections_today: TAKE decisions that were risk-rejected
+              - last_rejection_pair: the pair of the most recent rejection
+        """
         today_trades = self.get_today_trades()
-        executed = [t for t in today_trades if t.get("decision") == "EXECUTE" and t.get("risk_approved")]
+
+        # TAKE attempts = all decisions where AI said TAKE (regardless of risk outcome)
+        take_attempts = [
+            t for t in today_trades
+            if t.get("decision") in ("TAKE", "EXECUTE")  # support legacy name too
+        ]
+
+        # Successfully executed = TAKE + risk approved
+        executed = [
+            t for t in take_attempts
+            if t.get("risk_approved") is True
+        ]
+
+        # Rejected = TAKE + risk rejected
+        rejected = [
+            t for t in take_attempts
+            if t.get("risk_approved") is False
+        ]
+
         total_pnl = sum(t.get("pnl", 0) or 0 for t in executed)
+
+        last_rejection_pair = None
+        if rejected:
+            last_rejection_pair = rejected[-1].get("pair")
+
         return {
             "total_decisions": len(today_trades),
             "executed_count": len(executed),
+            "take_attempts": len(take_attempts),
             "total_pnl": total_pnl,
             "wins": len([t for t in executed if t.get("result") == "win"]),
             "losses": len([t for t in executed if t.get("result") == "loss"]),
             "pending": len([t for t in executed if t.get("result") is None]),
+            "rejections_today": len(rejected),
+            "last_rejection_pair": last_rejection_pair,
         }
+
+    def get_last_decision(self) -> dict | None:
+        """Get the most recent decision for anti-inflation context."""
+        records = self._read_all()
+        if records:
+            return records[-1]
+        return None
 
     def get_recent_trades(self, count: int = 10) -> list[dict]:
         """Get the most recent N trade records."""
@@ -166,3 +210,21 @@ class TradeLogger:
         records = self._read_all()
         pair_trades = [r for r in records if r.get("pair") == pair]
         return pair_trades[-count:] if len(pair_trades) >= count else pair_trades
+
+    def get_consecutive_rejections(self, pair: str | None = None) -> int:
+        """
+        Count consecutive TAKE rejections from the end of today's log.
+        Used for cooldown escalation.
+        """
+        today_trades = self.get_today_trades()
+        count = 0
+        for t in reversed(today_trades):
+            is_take = t.get("decision") in ("TAKE", "EXECUTE")
+            is_rejected = t.get("risk_approved") is False
+            matches_pair = (pair is None) or (t.get("pair") == pair)
+
+            if is_take and is_rejected and matches_pair:
+                count += 1
+            else:
+                break  # stop at first non-rejection
+        return count

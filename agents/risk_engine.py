@@ -1,16 +1,15 @@
 """
 risk_engine.py — AI Agent 2: Risk Engine.
 
-Validates the Trader Brain's EXECUTE decision against strict risk rules.
-Uses OpenAI-compatible API with a separate focused prompt.
+Architecture (per diagram):
+  Receives: scores + direction + user profile + live price + swing structure
+  Calculates: natural SL from swing structure, lot size from budget
+  Validates: SL fits max_loss, daily trade count, daily loss limit
+  Output: APPROVED (lots, SL, TP) or REJECTED (reason)
 
-Checks:
-  - Lot size fits within MAX_LOSS_PER_TRADE
-  - SL distance is achievable
-  - R:R meets tier requirements
-  - Daily trade count ≤ MAX_TRADES_PER_DAY
-  - Daily P&L loss ≤ DAILY_LOSS_LIMIT_USD
-  - No existing position on same pair
+The Risk Engine computes SL/TP — the Trader Brain does NOT set these.
+SL is placed beyond the nearest swing high/low + buffer pips.
+TP is computed from the R:R tier requirement.
 """
 
 import json
@@ -19,8 +18,89 @@ from loguru import logger
 from openai import OpenAI
 
 from config import settings
-from core.models import PriceData, RiskApproval, TraderDecision
+from core.models import (
+    MarketDataPayload,
+    PriceData,
+    RiskApproval,
+    TraderDecision,
+)
 from services.mt5_client import MT5Client
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RISK LIMIT CALCULATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def compute_risk_limits(balance: float) -> dict[str, float]:
+    """
+    Compute the actual USD risk limits from the live account balance.
+
+    Args:
+        balance: current MT5 account balance in USD
+
+    Returns:
+        dict with 'max_loss_per_trade_usd' and 'daily_loss_limit_usd'
+    """
+    max_loss_per_trade_usd = round(balance * (settings.MAX_LOSS_PER_TRADE_PCT / 100.0), 2)
+    daily_loss_limit_usd = round(balance * (settings.DAILY_LOSS_LIMIT_PCT / 100.0), 2)
+
+    return {
+        "max_loss_per_trade_usd": max_loss_per_trade_usd,
+        "daily_loss_limit_usd": daily_loss_limit_usd,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SL COMPUTATION FROM SWING STRUCTURE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def compute_sl_from_swings(
+    entry_price: float,
+    direction: str,
+    pair: str,
+    market_data: MarketDataPayload,
+) -> int | None:
+    """
+    Compute SL in pips from the nearest swing high/low in SMC data.
+
+    For BUY:  SL below the nearest swing low  - buffer
+    For SELL: SL above the nearest swing high + buffer
+
+    Returns SL in pips, or None if no swing data available.
+    """
+    pip_size = settings.PAIR_PIP_SIZES.get(pair, settings.PIP_SIZE)
+    pair_data = market_data.pairs.get(pair)
+    if not pair_data:
+        return None
+
+    # Try 15m swings first (tighter SL), then 1h (wider but safer)
+    swing_low = None
+    swing_high = None
+
+    for tf in ["15m", "1h"]:
+        smc_data = pair_data.smc.get(tf)
+        if smc_data:
+            if smc_data.latest_swing_low and swing_low is None:
+                swing_low = smc_data.latest_swing_low
+            if smc_data.latest_swing_high and swing_high is None:
+                swing_high = smc_data.latest_swing_high
+
+    if direction == "BUY":
+        if swing_low is None:
+            return None
+        sl_distance = entry_price - swing_low
+        sl_pips = int(sl_distance / pip_size) + settings.SL_BUFFER_PIPS
+    elif direction == "SELL":
+        if swing_high is None:
+            return None
+        sl_distance = swing_high - entry_price
+        sl_pips = int(sl_distance / pip_size) + settings.SL_BUFFER_PIPS
+    else:
+        return None
+
+    # Clamp to bounds
+    sl_pips = max(settings.MIN_SL_PIPS, min(sl_pips, settings.MAX_SL_PIPS))
+    return sl_pips
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -28,46 +108,47 @@ from services.mt5_client import MT5Client
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def calculate_lot_size(
-    balance: float,
     max_loss_usd: float,
     sl_pips: int,
-    spread_pips: float,
+    pair: str = "EURUSD",
+    live_spread_pips: float | None = None,
 ) -> float | None:
     """
     Calculate the lot size based on risk parameters.
 
     Args:
-        balance:      current account balance
-        max_loss_usd: max amount willing to lose per trade
+        max_loss_usd: max amount willing to lose per trade (already in USD)
         sl_pips:      stop loss distance in pips
-        spread_pips:  broker spread in pips
+        pair:         trading pair (for pip value lookup)
+        live_spread_pips: live spread in pips (falls back to settings.SPREAD_PIPS)
 
     Returns:
         lot size (float) or None if SL is too wide for budget
     """
-    pip_value_micro = settings.PIP_VALUE_PER_MICRO_LOT  # $0.10 per pip at 0.01 lot
+    pip_value_micro = settings.PAIR_PIP_VALUES_MICRO.get(pair, settings.PIP_VALUE_PER_MICRO_LOT)
+    spread_pips = live_spread_pips if live_spread_pips is not None else settings.SPREAD_PIPS
 
-    # Subtract spread cost from risk budget
-    spread_cost = spread_pips * pip_value_micro
-    net_risk = max_loss_usd - spread_cost
+    # Total pip exposure = SL + spread
+    total_pip_risk = sl_pips + spread_pips
 
-    if net_risk <= 0:
-        return settings.MIN_LOT  # minimum lot
+    # At minimum lot (0.01), what would we lose?
+    min_lot_risk = total_pip_risk * pip_value_micro
 
-    # How many pips can we afford at 0.01 lot?
-    max_sl_pips_at_micro = net_risk / pip_value_micro
+    if min_lot_risk > max_loss_usd:
+        return None  # Can't even afford minimum lot — REJECT
 
-    if sl_pips > max_sl_pips_at_micro:
-        return None  # SL too wide for budget — SKIP trade
-
-    # Scale up if budget allows
-    lot_size = round(net_risk / (sl_pips * pip_value_micro * 10), 2)
+    # How many micro lots can we afford?
+    # lot_size = max_loss_usd / (total_pip_risk * pip_value_per_lot)
+    # pip_value_per_lot = pip_value_micro / MIN_LOT (= pip_value_micro * 100)
+    pip_value_per_full_lot = pip_value_micro / settings.MIN_LOT
+    lot_size = max_loss_usd / (total_pip_risk * pip_value_per_full_lot)
+    lot_size = round(lot_size, 2)
     lot_size = max(settings.MIN_LOT, min(lot_size, settings.MAX_LOT))
 
     return lot_size
 
 
-def pips_to_price(entry_price: float, pips: int, direction: str, side: str) -> float:
+def pips_to_price(entry_price: float, pips: int, direction: str, side: str, pair: str = "EURUSD") -> float:
     """
     Convert pips to a price level.
 
@@ -76,11 +157,12 @@ def pips_to_price(entry_price: float, pips: int, direction: str, side: str) -> f
         pips:        number of pips
         direction:   "BUY" or "SELL"
         side:        "sl" or "tp"
+        pair:        trading pair (for pip size lookup)
 
     Returns:
         price level rounded to 5 decimal places
     """
-    pip = settings.PIP_SIZE  # 0.0001 for EUR/GBP pairs
+    pip = settings.PAIR_PIP_SIZES.get(pair, settings.PIP_SIZE)
 
     if direction == "BUY":
         if side == "sl":
@@ -100,64 +182,48 @@ def pips_to_price(entry_price: float, pips: int, direction: str, side: str) -> f
 
 def _run_hard_risk_checks(
     decision: TraderDecision,
-    mt5: MT5Client,
+    balance: float,
     trades_today_count: int,
     daily_pnl: float,
+    take_attempts_today: int,
+    mt5: MT5Client,
 ) -> RiskApproval | None:
     """
-    Run deterministic risk checks before calling the AI.
+    Run deterministic risk checks before doing any computation.
     Returns a REJECTED RiskApproval if any check fails, or None if all pass.
     """
-    # 1. Daily trade limit
+    risk_limits = compute_risk_limits(balance)
+    daily_limit_usd = risk_limits["daily_loss_limit_usd"]
+
+    # 1. Daily trade limit (successful executions)
     if trades_today_count >= settings.MAX_TRADES_PER_DAY:
         return RiskApproval(
             approved=False,
             reason=f"Daily trade limit reached: {trades_today_count}/{settings.MAX_TRADES_PER_DAY}",
         )
 
-    # 2. Daily loss limit
-    if daily_pnl <= -settings.DAILY_LOSS_LIMIT_USD:
+    # 2. Daily TAKE attempt limit (prevents rejection loops)
+    if take_attempts_today >= settings.MAX_TAKE_ATTEMPTS_PER_DAY:
         return RiskApproval(
             approved=False,
-            reason=f"Daily loss limit reached: ${daily_pnl:.2f} (limit: -${settings.DAILY_LOSS_LIMIT_USD})",
+            reason=f"Daily TAKE attempt limit reached: {take_attempts_today}/{settings.MAX_TAKE_ATTEMPTS_PER_DAY}",
         )
 
-    # 3. Existing position on same pair
+    # 3. Daily loss limit (percentage-based)
+    if daily_pnl <= -daily_limit_usd:
+        return RiskApproval(
+            approved=False,
+            reason=(
+                f"Daily loss limit reached: ${daily_pnl:.2f} "
+                f"(limit: -${daily_limit_usd:.2f} = {settings.DAILY_LOSS_LIMIT_PCT}% of ${balance:.2f})"
+            ),
+        )
+
+    # 4. Existing position on same pair
     if decision.pair and mt5.has_open_position(decision.pair):
         return RiskApproval(
             approved=False,
             reason=f"Already have an open position on {decision.pair}",
-        )
-
-    # 4. SL pips validation
-    if not decision.sl_pips or decision.sl_pips <= 0:
-        return RiskApproval(
-            approved=False,
-            reason="Invalid or missing SL pips from Trader Brain",
-        )
-
-    # 5. Lot size calculation
-    account = mt5.get_account_info()
-    balance = account.balance if account else 0
-
-    lots = calculate_lot_size(
-        balance=balance,
-        max_loss_usd=settings.MAX_LOSS_PER_TRADE,
-        sl_pips=decision.sl_pips,
-        spread_pips=settings.SPREAD_PIPS,
-    )
-
-    if lots is None:
-        return RiskApproval(
-            approved=False,
-            reason=f"SL too wide ({decision.sl_pips} pips) for risk budget (${settings.MAX_LOSS_PER_TRADE})",
-        )
-
-    # 6. R:R ratio check
-    if decision.rr_ratio and decision.rr_ratio < settings.MIN_RR_RATIO:
-        return RiskApproval(
-            approved=False,
-            reason=f"R:R ratio {decision.rr_ratio} below minimum {settings.MIN_RR_RATIO}",
         )
 
     # All hard checks passed
@@ -168,20 +234,21 @@ def _run_hard_risk_checks(
 # AI RISK VALIDATION
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _build_risk_prompt() -> str:
+def _build_risk_prompt(max_loss_usd: float, daily_limit_usd: float) -> str:
     """Build the system prompt for the Risk Engine AI."""
     return f"""You are a strict forex risk manager. Your job is to validate or reject a trade that has been proposed by a trader AI.
 
 You receive:
-- The proposed trade details (pair, direction, scores, SL/TP in pips)
-- The current live price (bid/ask)
-- Account information (balance, equity, open positions)
+- The proposed trade details (pair, direction, scores)
+- Computed SL/TP prices (from swing structure)
+- Computed lot size (from risk budget)
+- Account information (balance, equity)
 - Today's trade count and P&L
 
 Your ONLY job is to:
-1. Validate the lot size fits within the max loss budget (${settings.MAX_LOSS_PER_TRADE}/trade)
-2. Calculate exact SL and TP price levels from the entry price + pips
-3. Verify the R:R ratio meets the minimum requirement
+1. Verify the SL placement makes structural sense (not in the middle of a range)
+2. Verify the R:R ratio meets the minimum for the score tier
+3. Confirm the lot size doesn't exceed the risk budget
 4. Check that daily limits are respected
 
 R:R Requirements by score tier:
@@ -192,11 +259,6 @@ Default minimum R:R: 1:{settings.MIN_RR_RATIO}
 You MUST respond with ONLY valid JSON:
 {{
   "approved": true | false,
-  "lots": <float, e.g. 0.01>,
-  "entry_price": <float>,
-  "sl_price": <float>,
-  "tp_price": <float>,
-  "rr_ratio": <float>,
   "reason": "<explanation>"
 }}
 
@@ -206,53 +268,100 @@ Be conservative. When in doubt, REJECT. Capital preservation is paramount."""
 def evaluate(
     decision: TraderDecision,
     mt5: MT5Client,
+    market_data: MarketDataPayload,
     trades_today_count: int = 0,
     daily_pnl: float = 0.0,
+    take_attempts_today: int = 0,
 ) -> RiskApproval:
     """
     Evaluate a trade decision through the risk engine.
 
+    Architecture:
     1. Run deterministic hard checks first (fast, free)
-    2. If hard checks pass, call AI for final validation
-    3. Return APPROVED or REJECTED with details
+    2. Compute SL from swing structure
+    3. Compute lot size from budget
+    4. Compute TP from R:R tier
+    5. Call AI for final sanity validation
+    6. Return APPROVED or REJECTED with details
     """
     logger.info("⚖️  Running Risk Engine...")
 
+    # ── Fetch account balance ONCE ──
+    account = mt5.get_account_info()
+    balance = account.balance if account else 0
+
+    if balance <= 0:
+        return RiskApproval(
+            approved=False,
+            reason="Cannot determine account balance — MT5 might be down",
+        )
+
+    risk_limits = compute_risk_limits(balance)
+    max_loss_usd = risk_limits["max_loss_per_trade_usd"]
+    daily_limit_usd = risk_limits["daily_loss_limit_usd"]
+
+    logger.info(
+        f"Risk limits from ${balance:.2f} balance: "
+        f"per-trade=${max_loss_usd:.2f} ({settings.MAX_LOSS_PER_TRADE_PCT}%), "
+        f"daily=${daily_limit_usd:.2f} ({settings.DAILY_LOSS_LIMIT_PCT}%)"
+    )
+
     # ── Hard checks (deterministic) ──
-    hard_reject = _run_hard_risk_checks(decision, mt5, trades_today_count, daily_pnl)
+    hard_reject = _run_hard_risk_checks(
+        decision, balance, trades_today_count, daily_pnl, take_attempts_today, mt5,
+    )
     if hard_reject:
         logger.info(f"🚫 Risk REJECTED (hard check): {hard_reject.reason}")
         return hard_reject
 
     # ── Get live price ──
-    price_data = mt5.get_price(decision.pair) if decision.pair else None
+    pair = decision.pair
+    price_data = mt5.get_price(pair) if pair else None
     if not price_data:
         return RiskApproval(
             approved=False,
-            reason=f"Cannot get live price for {decision.pair} — MT5 might be down",
+            reason=f"Cannot get live price for {pair} — MT5 might be down",
         )
 
-    # ── Calculate entry, SL, TP prices ──
+    # ── Check spread ──
+    if price_data.spread_pips > settings.SPREAD_MAX_PIPS:
+        return RiskApproval(
+            approved=False,
+            reason=f"Spread too high: {price_data.spread_pips:.1f} pips (max {settings.SPREAD_MAX_PIPS})",
+        )
+
+    # ── Compute entry price ──
     entry_price = price_data.ask if decision.direction == "BUY" else price_data.bid
-    sl_price = pips_to_price(entry_price, decision.sl_pips, decision.direction, "sl")
-    tp_pips = decision.tp_pips or int(decision.sl_pips * settings.MIN_RR_RATIO)
-    tp_price = pips_to_price(entry_price, tp_pips, decision.direction, "tp")
 
-    # ── Calculate lot size ──
-    account = mt5.get_account_info()
-    balance = account.balance if account else 0
+    # ── Compute SL from swing structure ──
+    sl_pips = compute_sl_from_swings(entry_price, decision.direction, pair, market_data)
 
+    if sl_pips is None:
+        # Fallback: no swing data → reject (fail-closed approach per architecture)
+        return RiskApproval(
+            approved=False,
+            reason="No swing structure data to compute SL — cannot determine safe stop level",
+        )
+
+    logger.info(f"📐 SL computed from swing structure: {sl_pips} pips")
+
+    # ── Compute lot size ──
     lots = calculate_lot_size(
-        balance=balance,
-        max_loss_usd=settings.MAX_LOSS_PER_TRADE,
-        sl_pips=decision.sl_pips,
-        spread_pips=price_data.spread_pips,
+        max_loss_usd=max_loss_usd,
+        sl_pips=sl_pips,
+        pair=pair,
+        live_spread_pips=price_data.spread_pips,
     )
 
     if lots is None:
+        max_affordable_sl = settings.compute_max_sl_pips(balance, pair)
         return RiskApproval(
             approved=False,
-            reason=f"SL {decision.sl_pips} pips too wide for budget after spread {price_data.spread_pips}",
+            reason=(
+                f"SL {sl_pips} pips too wide for budget "
+                f"(${max_loss_usd:.2f} = {settings.MAX_LOSS_PER_TRADE_PCT}% of ${balance:.2f}, "
+                f"max affordable SL: {max_affordable_sl} pips)"
+            ),
         )
 
     # ── Determine required R:R from score tier ──
@@ -262,48 +371,62 @@ def evaluate(
             required_rr = tier["rr_ratio"]
             break
 
-    actual_rr = tp_pips / decision.sl_pips if decision.sl_pips > 0 else 0
+    # ── Compute TP from R:R requirement ──
+    tp_pips = int(sl_pips * required_rr)
+    actual_rr = tp_pips / sl_pips if sl_pips > 0 else 0
 
-    # ── AI validation ──
+    # ── Compute price levels ──
+    sl_price = pips_to_price(entry_price, sl_pips, decision.direction, "sl", pair)
+    tp_price = pips_to_price(entry_price, tp_pips, decision.direction, "tp", pair)
+
+    logger.info(
+        f"📊 Trade params: {lots} lots | SL={sl_pips}pips ({sl_price}) | "
+        f"TP={tp_pips}pips ({tp_price}) | R:R 1:{actual_rr:.1f} (required 1:{required_rr:.0f})"
+    )
+
+    # ── AI validation (lightweight sanity check) ──
     try:
         client = OpenAI(
             api_key=settings.LLM_API_KEY,
             base_url=settings.LLM_BASE_URL,
         )
 
+        pip_value_micro = settings.PAIR_PIP_VALUES_MICRO.get(pair, settings.PIP_VALUE_PER_MICRO_LOT)
+
         risk_context = f"""Proposed Trade:
-  Pair: {decision.pair}
+  Pair: {pair}
   Direction: {decision.direction}
   Total Score: {decision.total_score}
   Phase 1: {decision.phase1_total}/{settings.PHASE1_MAX_SCORE}
   Phase 2: {decision.phase2_total}/{settings.PHASE2_MAX_SCORE}
-  SL: {decision.sl_pips} pips | TP: {tp_pips} pips
+
+Computed from swing structure:
+  Entry: {entry_price} ({decision.direction})
+  SL: {sl_pips} pips → {sl_price}
+  TP: {tp_pips} pips → {tp_price}
   R:R: 1:{actual_rr:.1f} (required: 1:{required_rr:.0f})
 
 Live Price:
   Bid: {price_data.bid} | Ask: {price_data.ask} | Spread: {price_data.spread_pips} pips
-  Entry: {entry_price} ({decision.direction})
-  SL Price: {sl_price}
-  TP Price: {tp_price}
 
 Account:
   Balance: ${balance:.2f}
-  Calculated Lot Size: {lots}
-  Max Loss: ${settings.MAX_LOSS_PER_TRADE}
-  Risk per pip at {lots} lots: ${lots * settings.PIP_VALUE_PER_MICRO_LOT / settings.MIN_LOT:.4f}
+  Lot Size: {lots}
+  Max Loss Per Trade: ${max_loss_usd:.2f} ({settings.MAX_LOSS_PER_TRADE_PCT}% of balance)
+  Risk at {lots} lots: ${lots * pip_value_micro / settings.MIN_LOT * sl_pips:.2f}
 
 Daily Stats:
   Trades today: {trades_today_count}/{settings.MAX_TRADES_PER_DAY}
-  Daily P&L: ${daily_pnl:.2f} (limit: -${settings.DAILY_LOSS_LIMIT_USD})
+  Daily P&L: ${daily_pnl:.2f} (limit: -${daily_limit_usd:.2f})
 
 Trader Brain Reasoning: {decision.reasoning[:500]}"""
 
         response = client.chat.completions.create(
             model=settings.LLM_MODEL,
             temperature=0.1,  # very low for risk decisions
-            max_tokens=500,
+            max_tokens=300,
             messages=[
-                {"role": "system", "content": _build_risk_prompt()},
+                {"role": "system", "content": _build_risk_prompt(max_loss_usd, daily_limit_usd)},
                 {"role": "user", "content": risk_context},
             ],
         )
@@ -319,35 +442,34 @@ Trader Brain Reasoning: {decision.reasoning[:500]}"""
 
         data = json.loads(json_str)
 
-        approval = RiskApproval(
-            approved=data.get("approved", False),
-            lots=data.get("lots", lots),
-            sl_price=data.get("sl_price", sl_price),
-            tp_price=data.get("tp_price", tp_price),
-            entry_price=data.get("entry_price", entry_price),
-            reason=data.get("reason", ""),
-            rr_ratio=data.get("rr_ratio", actual_rr),
+        ai_approved = data.get("approved", False)
+        ai_reason = data.get("reason", "")
+
+        if not ai_approved:
+            logger.info(f"🚫 Risk AI REJECTED: {ai_reason}")
+            return RiskApproval(
+                approved=False,
+                reason=f"Risk AI rejected: {ai_reason}",
+            )
+
+        # AI approved — build full approval
+        logger.info(f"✅ Risk APPROVED: {lots} lots | SL={sl_price} TP={tp_price} | R:R 1:{actual_rr:.1f}")
+
+        return RiskApproval(
+            approved=True,
+            lots=lots,
+            sl_price=sl_price,
+            tp_price=tp_price,
+            sl_pips=sl_pips,
+            tp_pips=tp_pips,
+            entry_price=entry_price,
+            reason=ai_reason or f"Approved: {lots} lots, R:R 1:{actual_rr:.1f}",
+            rr_ratio=actual_rr,
         )
-
-        # Safety override: never exceed our calculated lot size
-        if approval.lots > lots:
-            approval.lots = lots
-
-        # Safety override: lot size bounds
-        approval.lots = max(settings.MIN_LOT, min(approval.lots, settings.MAX_LOT))
-
-        if approval.approved:
-            logger.info(f"✅ Risk APPROVED: {approval.lots} lots | "
-                        f"SL={approval.sl_price} TP={approval.tp_price} | "
-                        f"R:R 1:{approval.rr_ratio:.1f}")
-        else:
-            logger.info(f"🚫 Risk REJECTED: {approval.reason}")
-
-        return approval
 
     except Exception as e:
         logger.error(f"Risk Engine AI error: {e}")
-        # Fallback: use deterministic calculation
+        # Fallback: use deterministic approval (all hard checks already passed)
         logger.info("Falling back to deterministic risk approval...")
 
         if actual_rr >= required_rr:
@@ -356,8 +478,10 @@ Trader Brain Reasoning: {decision.reasoning[:500]}"""
                 lots=lots,
                 sl_price=sl_price,
                 tp_price=tp_price,
+                sl_pips=sl_pips,
+                tp_pips=tp_pips,
                 entry_price=entry_price,
-                reason=f"Deterministic approval (AI unavailable). Lots={lots}, R:R=1:{actual_rr:.1f}",
+                reason=f"Deterministic approval (AI unavailable). {lots} lots, R:R=1:{actual_rr:.1f}",
                 rr_ratio=actual_rr,
             )
         else:

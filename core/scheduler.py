@@ -2,9 +2,12 @@
 scheduler.py — APScheduler management for the Smart Money Trading Bot.
 
 Handles:
-  - Creating one-shot jobs when the AI says WATCH (schedule for later)
+  - Creating one-shot jobs when the AI says SCHEDULE (schedule for later)
   - Managing the main scan loop
   - Ensuring jobs don't stack or conflict
+
+Key fix: ALL analysis jobs use the SAME job ID ("analysis_job") to prevent
+concurrent analysis cycles from overlapping.
 """
 
 from datetime import datetime, timedelta
@@ -19,6 +22,9 @@ from config import settings
 
 class BotScheduler:
     """Manages APScheduler for the trading bot."""
+
+    # Single job ID for ALL analysis scheduling — prevents stacking
+    ANALYSIS_JOB_ID = "analysis_job"
 
     def __init__(self):
         self.scheduler = BackgroundScheduler(timezone=pytz.UTC)
@@ -46,20 +52,20 @@ class BotScheduler:
             logger.info("⏰ Scheduler stopped")
 
     # ═══════════════════════════════════════════════════════════════════════
-    # SCHEDULE A ONE-SHOT ANALYSIS
+    # SCHEDULE A ONE-SHOT ANALYSIS — all use same job ID
     # ═══════════════════════════════════════════════════════════════════════
 
     def schedule_analysis(
         self,
         minutes_from_now: int,
         reason: str = "",
-        job_id: str = "ai_scheduled_analysis",
     ):
         """
         Schedule a one-shot analysis job at a specific time in the future.
-        Used when the AI returns WATCH with next_check_minutes.
+        Used for AI SCHEDULE decisions, gate retries, and default scans.
 
-        If a job with the same ID already exists, it is replaced.
+        ALL analysis jobs use the same job ID to prevent stacking.
+        If a job already exists, it is replaced (not duplicated).
         """
         if not self._analysis_callback:
             logger.error("Cannot schedule — no analysis callback set")
@@ -74,34 +80,38 @@ class BotScheduler:
 
         run_time = datetime.now(pytz.UTC) + timedelta(minutes=minutes_from_now)
 
-        # Remove existing job with same ID if present
+        # Remove existing job if present (prevent stacking)
         try:
-            self.scheduler.remove_job(job_id)
+            existing = self.scheduler.get_job(self.ANALYSIS_JOB_ID)
+            if existing and existing.next_run_time:
+                old_time = existing.next_run_time.strftime('%H:%M:%S')
+                new_time = run_time.strftime('%H:%M:%S')
+                logger.info(f"⏰ Replacing existing job (was {old_time} UTC) → now {new_time} UTC")
+            self.scheduler.remove_job(self.ANALYSIS_JOB_ID)
         except Exception:
             pass
 
         self.scheduler.add_job(
             self._analysis_callback,
             trigger=DateTrigger(run_date=run_time),
-            id=job_id,
-            name=f"AI Analysis ({reason[:50]})" if reason else "AI Scheduled Analysis",
+            id=self.ANALYSIS_JOB_ID,
+            name=f"Analysis ({reason[:50]})" if reason else "Scheduled Analysis",
             replace_existing=True,
-            misfire_grace_time=60,  # allow 60 seconds late
+            misfire_grace_time=120,  # allow 2 minutes late
         )
 
         logger.info(
-            f"⏰ Scheduled analysis in {minutes_from_now} min "
+            f"⏰ Next analysis in {minutes_from_now} min "
             f"(at {run_time.strftime('%H:%M:%S')} UTC)"
         )
         if reason:
             logger.info(f"   Reason: {reason}")
 
-    def schedule_default_scan(self, job_id: str = "default_scan"):
+    def schedule_default_scan(self):
         """Schedule the next scan at the default interval."""
         self.schedule_analysis(
             minutes_from_now=settings.DEFAULT_SCAN_INTERVAL_MINUTES,
             reason="Default scan interval",
-            job_id=job_id,
         )
 
     def schedule_gate_retry(self, skip_minutes: int, reason: str = ""):
@@ -109,7 +119,13 @@ class BotScheduler:
         self.schedule_analysis(
             minutes_from_now=skip_minutes,
             reason=f"Gate retry: {reason}",
-            job_id="gate_retry",
+        )
+
+    def schedule_cooldown(self, cooldown_minutes: int, reason: str = ""):
+        """Schedule after a risk rejection with cooldown."""
+        self.schedule_analysis(
+            minutes_from_now=cooldown_minutes,
+            reason=f"Rejection cooldown: {reason}",
         )
 
     # ═══════════════════════════════════════════════════════════════════════

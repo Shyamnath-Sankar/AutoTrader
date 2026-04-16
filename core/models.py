@@ -1,6 +1,11 @@
 """
 models.py — Pydantic data models for the Smart Money Trading Bot.
 Every structured data object the bot uses is defined here.
+
+Architecture decisions:
+  - TraderDecision uses TAKE / LEAVE / SCHEDULE (per architecture diagram)
+  - Trader Brain provides scores + direction + pair; NO SL/TP (Risk Engine computes those)
+  - Risk Engine computes SL from swing structure, TP from R:R, lot size from budget
 """
 
 from __future__ import annotations
@@ -75,6 +80,7 @@ class SMCData(BaseModel):
     liquidity_swept: bool = False
     liquidity_sweep_type: Optional[str] = None   # "bullish" or "bearish"
     liquidity_level: Optional[float] = None
+    liquidity_candles_ago: Optional[int] = None   # how recent was the sweep
     # Swing H/L
     latest_swing_high: Optional[float] = None
     latest_swing_low: Optional[float] = None
@@ -113,7 +119,12 @@ class MarketDataPayload(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# AI Scoring & Decision
+# AI Scoring & Decision — Trader Brain (Agent 1)
+#
+# Decision types (per architecture diagram):
+#   TAKE     → high-confidence setup, proceed to Risk Engine
+#   LEAVE    → no viable setup, log and done
+#   SCHEDULE → setup building, AI sets exact wakeup time with reason
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class Phase1Scores(BaseModel):
@@ -135,8 +146,13 @@ class Phase2Scores(BaseModel):
 
 
 class TraderDecision(BaseModel):
-    """Output from AI Agent 1 — Trader Brain."""
-    decision: str                    # "EXECUTE", "WATCH", "SKIP"
+    """
+    Output from AI Agent 1 — Trader Brain.
+
+    The Trader Brain outputs ONLY scores, direction, pair, and reasoning.
+    SL/TP/lots are computed by the Risk Engine from swing structure.
+    """
+    decision: str                    # "TAKE", "LEAVE", "SCHEDULE"
     pair: Optional[str] = None
     direction: Optional[str] = None  # "BUY", "SELL", or None
     phase1_scores: Phase1Scores = Field(default_factory=Phase1Scores)
@@ -144,16 +160,17 @@ class TraderDecision(BaseModel):
     phase2_scores: Phase2Scores = Field(default_factory=Phase2Scores)
     phase2_total: int = 0
     total_score: int = 0
-    sl_pips: Optional[int] = None
-    tp_pips: Optional[int] = None
-    rr_ratio: Optional[float] = None
     reasoning: str = ""
-    next_check_minutes: Optional[int] = None
-    next_check_reason: Optional[str] = None
+    # SCHEDULE fields — AI sets exact wakeup time
+    schedule_minutes: Optional[int] = None
+    schedule_reason: Optional[str] = None
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Risk Engine
+# Risk Engine — Agent 2
+#
+# Risk Engine receives: scores + direction + swing structure + live price + account
+# Risk Engine computes: natural SL from swing H/L, TP from R:R tier, lot size from budget
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class RiskApproval(BaseModel):
@@ -162,6 +179,8 @@ class RiskApproval(BaseModel):
     lots: float = 0.0
     sl_price: float = 0.0
     tp_price: float = 0.0
+    sl_pips: int = 0
+    tp_pips: int = 0
     entry_price: float = 0.0
     reason: str = ""
     rr_ratio: float = 0.0
@@ -217,7 +236,7 @@ class TradeRecord(BaseModel):
     timestamp: str
     pair: str
     direction: str
-    decision: str                  # EXECUTE, WATCH, SKIP
+    decision: str                  # TAKE, LEAVE, SCHEDULE
     phase1_scores: dict = {}
     phase1_total: int = 0
     phase2_scores: dict = {}

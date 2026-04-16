@@ -10,7 +10,7 @@ Sources:
   6. Trade logger     → today's trades for context
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pandas as pd
 import pytz
@@ -28,12 +28,21 @@ from core.models import (
 )
 from services.mt5_client import MT5Client
 
-# Try importing SMC library — it may fail on some systems
+# Try importing SMC library — may fail on Windows (Unicode emoji in library's __init__)
 try:
+    import io, sys as _sys
+    # Redirect stdout temporarily to suppress the library's emoji print on Windows
+    _old_stdout = _sys.stdout
+    _sys.stdout = io.TextIOWrapper(io.BytesIO(), encoding='utf-8')
     from smartmoneyconcepts.smc import smc
+    _sys.stdout = _old_stdout
     SMC_AVAILABLE = True
-except ImportError:
-    logger.warning("smartmoneyconcepts not installed — SMC analysis will be skipped")
+except Exception as e:
+    try:
+        _sys.stdout = _old_stdout
+    except Exception:
+        pass
+    logger.warning(f"smartmoneyconcepts unavailable ({e}) — SMC analysis will be skipped")
     SMC_AVAILABLE = False
 
 
@@ -134,6 +143,25 @@ def fetch_ohlcv(pair: str, interval: str, period: str) -> pd.DataFrame | None:
                 logger.warning(f"Missing column '{col}' in yfinance data for {yf_symbol}")
                 return None
         df = df[required].dropna()
+
+        # Data freshness check — warn if last candle is stale
+        if hasattr(df.index, 'tz') and df.index.tz is not None:
+            last_candle_time = df.index[-1]
+        else:
+            last_candle_time = df.index[-1]
+        now = pd.Timestamp.now(tz='UTC')
+        try:
+            last_ts = pd.Timestamp(last_candle_time)
+            if last_ts.tzinfo is None:
+                last_ts = last_ts.tz_localize('UTC')
+            staleness_minutes = (now - last_ts).total_seconds() / 60
+            if staleness_minutes > 60 and interval in ("15m", "1h"):
+                logger.warning(
+                    f"⚠️ yfinance data for {yf_symbol} {interval} is {staleness_minutes:.0f}min stale"
+                )
+        except Exception:
+            pass
+
         return df
     except Exception as e:
         logger.error(f"yfinance error for {yf_symbol} {interval}: {e}")
@@ -141,18 +169,21 @@ def fetch_ohlcv(pair: str, interval: str, period: str) -> pd.DataFrame | None:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 3. SMC ANALYSIS
+# 3. SMC ANALYSIS — with recency tracking
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def analyze_smc(pair: str, ohlcv_df: pd.DataFrame, timeframe: str) -> SMCData:
     """
     Run Smart Money Concepts analysis on OHLCV candle data.
     Uses the smartmoneyconcepts library.
+    Includes recency info (candles_ago) so the AI knows how fresh events are.
     """
     smc_data = SMCData(pair=pair, timeframe=timeframe)
 
     if not SMC_AVAILABLE or ohlcv_df is None or ohlcv_df.empty:
         return smc_data
+
+    total_candles = len(ohlcv_df)
 
     try:
         # Swing highs and lows (needed by other functions)
@@ -223,7 +254,7 @@ def analyze_smc(pair: str, ohlcv_df: pd.DataFrame, timeframe: str) -> SMCData:
         except Exception as e:
             logger.debug(f"BOS/CHoCH analysis error for {pair} {timeframe}: {e}")
 
-        # --- Liquidity ---
+        # --- Liquidity (with recency) ---
         try:
             liq_df = smc.liquidity(ohlcv_df, swing_df)
             if liq_df is not None and not liq_df.empty:
@@ -233,6 +264,16 @@ def analyze_smc(pair: str, ohlcv_df: pd.DataFrame, timeframe: str) -> SMCData:
                     smc_data.liquidity_swept = True
                     smc_data.liquidity_sweep_type = "bullish" if last_swept["Liquidity"] == 1 else "bearish"
                     smc_data.liquidity_level = float(last_swept["Level"])
+                    # How many candles ago was the sweep?
+                    sweep_index = swept.index[-1]
+                    if isinstance(sweep_index, int):
+                        smc_data.liquidity_candles_ago = total_candles - 1 - sweep_index
+                    else:
+                        try:
+                            pos = ohlcv_df.index.get_loc(sweep_index)
+                            smc_data.liquidity_candles_ago = total_candles - 1 - pos
+                        except Exception:
+                            smc_data.liquidity_candles_ago = None
         except Exception as e:
             logger.debug(f"Liquidity analysis error for {pair} {timeframe}: {e}")
 
@@ -279,7 +320,6 @@ def fetch_news_events(pairs: list[str]) -> list[NewsEvent]:
     now_utc = datetime.now(pytz.UTC)
     cutoff = now_utc + timedelta(hours=6)  # look 6 hours ahead for context
 
-    from datetime import timedelta
     result = []
     for event in events:
         event_country = event.get("country", "").upper()
@@ -387,19 +427,23 @@ def format_data_for_prompt(payload: MarketDataPayload) -> str:
     if payload.open_positions:
         lines.append("\n── Open Positions ──")
         for pos in payload.open_positions:
+            profit = pos.get('profit', 0) or 0
             lines.append(
                 f"  {pos.get('symbol', '?')} {pos.get('type', '?')} "
-                f"{pos.get('volume', 0)} lots | P&L: ${pos.get('profit', 0):.2f}"
+                f"{pos.get('volume', 0)} lots | P&L: ${profit:.2f}"
             )
 
     if payload.trades_today:
         lines.append("\n── Today's Trade History ──")
         for t in payload.trades_today[-5:]:  # last 5 trades
+            pnl = t.get('pnl', 0) or 0
             lines.append(
                 f"  {t.get('pair', '?')} {t.get('direction', '?')} | "
                 f"Score: {t.get('total_score', '?')} | "
+                f"Decision: {t.get('decision', '?')} | "
+                f"Risk: {'✅' if t.get('risk_approved') else '❌' if t.get('risk_approved') is False else '—'} | "
                 f"Result: {t.get('result', 'pending')} | "
-                f"P&L: ${t.get('pnl', 0):.2f}"
+                f"P&L: ${pnl:.2f}"
             )
 
     for pair, pair_data in payload.pairs.items():
@@ -438,8 +482,9 @@ def format_data_for_prompt(payload: MarketDataPayload) -> str:
                 lines.append(f"  Last CHoCH: {smc_d.last_choch_type} @ {smc_d.last_choch_level}")
             lines.append(f"  Liquidity Swept: {smc_d.liquidity_swept}")
             if smc_d.liquidity_swept:
+                recency = f" ({smc_d.liquidity_candles_ago} candles ago)" if smc_d.liquidity_candles_ago is not None else ""
                 lines.append(
-                    f"  Sweep Type: {smc_d.liquidity_sweep_type} @ {smc_d.liquidity_level}"
+                    f"  Sweep Type: {smc_d.liquidity_sweep_type} @ {smc_d.liquidity_level}{recency}"
                 )
             if smc_d.current_retracement_pct:
                 lines.append(f"  Current Retracement: {smc_d.current_retracement_pct:.1f}%")

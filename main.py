@@ -1,12 +1,20 @@
 """
 main.py — Entry point & Orchestrator for the Smart Money Trading Bot.
 
-This is the main daemon that:
-  1. Runs the hard gates
-  2. Collects market data
-  3. Calls the AI Trader Brain
-  4. Routes decisions (EXECUTE → Risk → MT5, WATCH → Schedule, SKIP → Log)
-  5. Loops forever on weekdays
+Architecture (per diagram):
+  1. Hard gates (Python, not AI) — session, ADX, news
+  2. Data collection layer — tradingview-ta, SMC library, news, MT5 account
+  3. AI Trader Brain (Agent 1) — scores everything, outputs TAKE / LEAVE / SCHEDULE
+  4. Risk Engine (Agent 2) — computes SL from swing structure, lot size, validates
+  5. MT5 execution — place trade if approved
+  6. Result logger — trades.json
+  7. Scheduling intelligence — AI sets exact wakeup time, or cooldown after rejection
+
+Anti-overtrading protections:
+  - Concurrency lock (no parallel analysis cycles)
+  - Rejection cooldown with exponential escalation
+  - TAKE attempt limit per day
+  - Previous decision context (anti score inflation)
 """
 
 import os
@@ -20,6 +28,8 @@ if sys.platform == "win32":
         sys.stderr.reconfigure(encoding="utf-8")
     except Exception:
         pass
+
+import threading
 import time
 import signal
 from datetime import datetime
@@ -60,6 +70,9 @@ trade_log = TradeLogger()
 bot_scheduler = BotScheduler()
 shutdown_requested = False
 
+# Concurrency lock — prevents overlapping analysis cycles
+_analysis_lock = threading.Lock()
+
 
 def signal_handler(signum, frame):
     """Handle Ctrl+C gracefully."""
@@ -73,6 +86,25 @@ signal.signal(signal.SIGTERM, signal_handler)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# COOLDOWN LOGIC
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _compute_cooldown_minutes(consecutive_rejections: int) -> int:
+    """
+    Compute cooldown minutes based on consecutive rejections.
+    Uses exponential escalation: base * escalation^(rejections-1)
+    """
+    if consecutive_rejections <= 0:
+        return settings.DEFAULT_SCAN_INTERVAL_MINUTES
+
+    base = settings.REJECTION_COOLDOWN_MINUTES
+    escalation = settings.REJECTION_COOLDOWN_ESCALATION
+    cooldown = base * (escalation ** (consecutive_rejections - 1))
+    cooldown = min(int(cooldown), settings.REJECTION_COOLDOWN_MAX_MINUTES)
+    return max(cooldown, settings.DEFAULT_SCAN_INTERVAL_MINUTES)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # MAIN ANALYSIS PIPELINE
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -81,11 +113,26 @@ def run_analysis_cycle():
     Run one complete analysis cycle:
       Gates → Data → Brain → Risk → Execute → Log
 
-    This is called by the scheduler or by the main loop.
+    Protected by a threading lock to prevent overlapping cycles.
     """
     global shutdown_requested
     if shutdown_requested:
         return
+
+    # Concurrency guard — skip if another cycle is already running
+    if not _analysis_lock.acquire(blocking=False):
+        logger.warning("⚠️ Analysis cycle already running — skipping this trigger")
+        return
+
+    try:
+        _run_analysis_cycle_locked()
+    finally:
+        _analysis_lock.release()
+
+
+def _run_analysis_cycle_locked():
+    """The actual analysis pipeline (runs within the lock)."""
+    global shutdown_requested
 
     cycle_start = datetime.now(pytz.UTC)
     logger.info(f"\n{'═' * 60}")
@@ -114,48 +161,82 @@ def run_analysis_cycle():
     logger.info("\n📊 Step 2: Collecting market data...")
     market_data = collect_all_data(mt5, trade_log)
 
+    # ── Get today's stats for context ─────────────────────────────────────
+    today_stats = trade_log.get_today_stats()
+    logger.info(
+        f"📈 Today's stats: {today_stats['executed_count']} trades executed, "
+        f"{today_stats['take_attempts']} TAKE attempts, "
+        f"{today_stats['rejections_today']} rejections, "
+        f"P&L: ${today_stats['total_pnl']:.2f}"
+    )
+
+    # ── Check TAKE attempt limit before calling AI ────────────────────────
+    if today_stats["take_attempts"] >= settings.MAX_TAKE_ATTEMPTS_PER_DAY:
+        logger.info(
+            f"🚫 Daily TAKE attempt limit reached ({today_stats['take_attempts']}"
+            f"/{settings.MAX_TAKE_ATTEMPTS_PER_DAY}) — scheduling default scan only"
+        )
+        bot_scheduler.schedule_default_scan()
+        return
+
+    # ── Get previous decision for anti-inflation context ──────────────────
+    previous_decision = trade_log.get_last_decision()
+
     # ── Step 3: AI Trader Brain ───────────────────────────────────────────
     logger.info("\n🧠 Step 3: AI Trader Brain analyzing...")
-    decision = analyze(market_data)
+    decision = analyze(market_data, previous_decision=previous_decision)
 
     # ── Step 4: Route Decision ────────────────────────────────────────────
 
-    if decision.decision == "SKIP":
-        # ── SKIP: Log and reschedule ──
-        logger.info("🔴 Decision: SKIP — no viable setup")
+    if decision.decision == "LEAVE":
+        # ── LEAVE: Log and reschedule at default interval ──
+        logger.info("🔴 Decision: LEAVE — no viable setup")
         trade_log.log_decision(decision)
         bot_scheduler.schedule_default_scan()
         return
 
-    elif decision.decision == "WATCH":
-        # ── WATCH: Schedule one-shot analysis ──
-        logger.info(f"🟡 Decision: WATCH — scheduling in {decision.next_check_minutes} min")
+    elif decision.decision == "SCHEDULE":
+        # ── SCHEDULE: AI sets exact wakeup time ──
+        schedule_min = decision.schedule_minutes or settings.DEFAULT_SCAN_INTERVAL_MINUTES
+        logger.info(f"🟡 Decision: SCHEDULE — waking up in {schedule_min} min")
+        if decision.schedule_reason:
+            logger.info(f"   Reason: {decision.schedule_reason}")
         trade_log.log_decision(decision)
         bot_scheduler.schedule_analysis(
-            minutes_from_now=decision.next_check_minutes or settings.DEFAULT_SCAN_INTERVAL_MINUTES,
-            reason=decision.next_check_reason or "AI watching setup",
+            minutes_from_now=schedule_min,
+            reason=decision.schedule_reason or "AI scheduled wakeup",
         )
         return
 
-    elif decision.decision == "EXECUTE":
-        # ── EXECUTE: Run Risk Engine → MT5 ──
-        logger.info("🟢 Decision: EXECUTE — running risk engine...")
-
-        # Get today's stats for risk checks
-        today_stats = trade_log.get_today_stats()
+    elif decision.decision == "TAKE":
+        # ── TAKE: Run Risk Engine → MT5 ──
+        logger.info("🟢 Decision: TAKE — running risk engine...")
 
         risk_result = evaluate(
             decision=decision,
             mt5=mt5,
+            market_data=market_data,
             trades_today_count=today_stats["executed_count"],
             daily_pnl=today_stats["total_pnl"],
+            take_attempts_today=today_stats["take_attempts"],
         )
 
         if not risk_result.approved:
             # ── REJECTED by risk engine ──
             logger.info(f"🚫 Risk REJECTED: {risk_result.reason}")
             trade_log.log_decision(decision, risk=risk_result)
-            bot_scheduler.schedule_default_scan()
+
+            # Compute cooldown based on consecutive rejections
+            consecutive = trade_log.get_consecutive_rejections(pair=decision.pair)
+            cooldown = _compute_cooldown_minutes(consecutive)
+            logger.info(
+                f"⏳ Rejection cooldown: {cooldown} min "
+                f"(consecutive rejections: {consecutive})"
+            )
+            bot_scheduler.schedule_cooldown(
+                cooldown_minutes=cooldown,
+                reason=f"TAKE rejected ({consecutive} consecutive): {risk_result.reason}",
+            )
             return
 
         # ── APPROVED — Execute trade on MT5 ──
@@ -176,7 +257,9 @@ def run_analysis_cycle():
             logger.info(
                 f"🎯 Trade EXECUTED! Ticket #{order_result.order} | "
                 f"{decision.direction} {risk_result.lots} lots {decision.pair} | "
-                f"Entry: {order_result.price} | SL: {risk_result.sl_price} | TP: {risk_result.tp_price}"
+                f"Entry: {order_result.price} | SL: {risk_result.sl_price} ({risk_result.sl_pips}pips) | "
+                f"TP: {risk_result.tp_price} ({risk_result.tp_pips}pips) | "
+                f"R:R 1:{risk_result.rr_ratio:.1f}"
             )
         else:
             logger.error(f"❌ Trade FAILED: {order_result.message} (code: {order_result.error_code})")
@@ -199,34 +282,26 @@ def run_analysis_cycle():
 
 def print_banner():
     """Print the bot startup banner."""
-    banner = """
+    total_max = settings.PHASE1_MAX_SCORE + settings.PHASE2_MAX_SCORE
+    banner = f"""
 ╔══════════════════════════════════════════════════════════════╗
-║              SMART MONEY TRADING BOT                        ║
-║              ──────────────────────                         ║
+║              SMART MONEY TRADING BOT v2.0                   ║
+║              ────────────────────────                       ║
 ║  AI-Powered · ICT/SMC · Two-Phase Scoring                   ║
 ╠══════════════════════════════════════════════════════════════╣
-║  Mode:       {mode:<15}                                     ║
-║  Pairs:      {pairs:<45}║
-║  LLM:        {llm:<45}║
-║  MT5:        {mt5:<45}║
-║  Scoring:    P1 max {p1_max} (min {p1_min}) + P2 max {p2_max} (min {p2_min})              ║
-║  Total min:  {total_min}/80 to EXECUTE                              ║
-║  Risk:       ${risk}/trade · ${daily_limit}/day · {max_trades} trades/day            ║
+║  Mode:       {settings.MODE.upper():<46}║
+║  Pairs:      {', '.join(settings.PAIRS):<46}║
+║  LLM:        {f'{settings.LLM_MODEL} @ {settings.LLM_BASE_URL[:30]}':<46}║
+║  MT5:        {settings.MT5_BASE_URL:<46}║
+╠══════════════════════════════════════════════════════════════╣
+║  Scoring:    P1 max {settings.PHASE1_MAX_SCORE} (min {settings.PHASE1_MIN_REQUIRED}) + P2 max {settings.PHASE2_MAX_SCORE} (min {settings.PHASE2_MIN_REQUIRED})              ║
+║  Total:      {settings.TOTAL_MIN_REQUIRED}/{total_max} to TAKE                                ║
+║  Risk:       {settings.MAX_LOSS_PER_TRADE_PCT}%/trade · {settings.DAILY_LOSS_LIMIT_PCT}%/day · {settings.MAX_TRADES_PER_DAY} trades/day            ║
+║  Overtrading: max {settings.MAX_TAKE_ATTEMPTS_PER_DAY} TAKE attempts · {settings.REJECTION_COOLDOWN_MINUTES}min cooldown      ║
+║  SL:         From swing structure + {settings.SL_BUFFER_PIPS}pip buffer             ║
+║  Decisions:  TAKE / SCHEDULE / LEAVE                        ║
 ╚══════════════════════════════════════════════════════════════╝
-""".format(
-        mode=settings.MODE.upper(),
-        pairs=", ".join(settings.PAIRS),
-        llm=f"{settings.LLM_MODEL} @ {settings.LLM_BASE_URL[:35]}",
-        mt5=settings.MT5_BASE_URL,
-        p1_max=settings.PHASE1_MAX_SCORE,
-        p1_min=settings.PHASE1_MIN_REQUIRED,
-        p2_max=settings.PHASE2_MAX_SCORE,
-        p2_min=settings.PHASE2_MIN_REQUIRED,
-        total_min=settings.TOTAL_MIN_REQUIRED,
-        risk=settings.MAX_LOSS_PER_TRADE,
-        daily_limit=settings.DAILY_LOSS_LIMIT_USD,
-        max_trades=settings.MAX_TRADES_PER_DAY,
-    )
+"""
     print(banner)
 
 
@@ -244,8 +319,23 @@ def check_prerequisites() -> bool:
     # Check MT5 connection
     if mt5.is_connected():
         account = mt5.get_account_info()
-        logger.info(f"✅ MT5 connected — Balance: ${account.balance:.2f} | "
-                     f"Leverage: 1:{account.leverage}")
+        if account:
+            balance = account.balance
+            max_sl_eurusd = settings.compute_max_sl_pips(balance, "EURUSD")
+            max_loss_usd = round(balance * (settings.MAX_LOSS_PER_TRADE_PCT / 100.0), 2)
+
+            logger.info(f"✅ MT5 connected — Balance: ${balance:.2f} | "
+                         f"Leverage: 1:{account.leverage}")
+            logger.info(f"   Risk budget: ${max_loss_usd:.2f}/trade "
+                         f"({settings.MAX_LOSS_PER_TRADE_PCT}%) | "
+                         f"Max SL: {max_sl_eurusd} pips at 0.01 lot")
+
+            # Warn if budget is very tight
+            if max_sl_eurusd < 10:
+                logger.warning(
+                    f"⚠️  Very tight SL budget ({max_sl_eurusd} pips). "
+                    f"Consider increasing account balance or risk % for viable trading."
+                )
     else:
         logger.warning("⚠️  MT5 not connected — bot will still run but cannot execute trades")
         logger.warning(f"   Start the MT5 HTTP server: metatrader-http-server --port 8001")
@@ -278,7 +368,7 @@ def main():
     """Main entry point — starts the bot daemon."""
     print_banner()
 
-    logger.info("🚀 Starting Smart Money Trading Bot...")
+    logger.info("🚀 Starting Smart Money Trading Bot v2.0...")
 
     # Check prerequisites
     if not check_prerequisites():

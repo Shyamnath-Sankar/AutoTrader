@@ -4,8 +4,10 @@ Pure Python, no AI. Deterministic pass/fail checks.
 
 Gates:
   1. Session Gate — are we in an active trading session?
-  2. ADX Gate    — is the market trending enough?
+  2. ADX Gate    — is the market trending enough? (checks ALL pairs)
   3. News Gate   — any high-impact news too close?
+
+Fail-closed policy: if we can't verify a condition, we DON'T trade.
 """
 
 from datetime import datetime, timedelta
@@ -92,13 +94,13 @@ def check_session_gate() -> GateResult:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 2. ADX GATE
+# 2. ADX GATE — checks ALL configured pairs
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def check_adx_gate(pair: str = "EURUSD") -> GateResult:
+def check_adx_gate_single(pair: str) -> tuple[bool, float | None, str]:
     """
-    Check if ADX on 4H is above the minimum threshold.
-    If ADX < ADX_MIN_THRESHOLD, market is not trending enough.
+    Check ADX on 4H for a single pair.
+    Returns (passed, adx_value, reason).
     """
     try:
         handler = TA_Handler(
@@ -111,34 +113,53 @@ def check_adx_gate(pair: str = "EURUSD") -> GateResult:
         adx = analysis.indicators.get("ADX")
 
         if adx is None:
-            logger.warning(f"ADX value is None for {pair} 4H — passing gate by default")
-            return GateResult(
-                gate_name="adx",
-                passed=True,
-                reason=f"ADX unavailable for {pair} 4H — passing by default",
-            )
+            # Fail-closed: can't read ADX → block trading
+            return False, None, f"ADX unavailable for {pair} 4H — blocking (fail-closed)"
 
         if adx < settings.ADX_MIN_THRESHOLD:
-            return GateResult(
-                gate_name="adx",
-                passed=False,
-                skip_minutes=settings.ADX_SKIP_MINUTES,
-                reason=f"ADX 4H too low: {adx:.1f} < {settings.ADX_MIN_THRESHOLD} (market not trending)",
-            )
+            return False, adx, f"{pair} ADX 4H = {adx:.1f} < {settings.ADX_MIN_THRESHOLD} (ranging)"
 
-        return GateResult(
-            gate_name="adx",
-            passed=True,
-            reason=f"ADX 4H = {adx:.1f} ≥ {settings.ADX_MIN_THRESHOLD} — market trending",
-        )
+        return True, adx, f"{pair} ADX 4H = {adx:.1f} ≥ {settings.ADX_MIN_THRESHOLD} (trending)"
 
     except Exception as e:
         logger.error(f"ADX gate error for {pair}: {e}")
-        # On error, pass the gate to avoid blocking the system
+        # Fail-closed: on error, block trading for safety
+        return False, None, f"ADX gate error for {pair} ({e}) — blocking (fail-closed)"
+
+
+def check_adx_gate(pairs: list[str] | None = None) -> GateResult:
+    """
+    Check if ADX on 4H is above the minimum threshold for ALL pairs.
+    If ANY pair is trending, we pass (so the AI can pick that pair).
+    If ALL pairs are ranging/error, we fail.
+    """
+    if pairs is None:
+        pairs = settings.PAIRS
+
+    results = []
+    any_trending = False
+
+    for pair in pairs:
+        passed, adx_val, reason = check_adx_gate_single(pair)
+        results.append(reason)
+        if passed:
+            any_trending = True
+            logger.info(f"  ✅ {reason}")
+        else:
+            logger.info(f"  ⚠️ {reason}")
+
+    if any_trending:
         return GateResult(
             gate_name="adx",
             passed=True,
-            reason=f"ADX gate error ({e}) — passing by default",
+            reason=f"At least one pair trending: {'; '.join(results)}",
+        )
+    else:
+        return GateResult(
+            gate_name="adx",
+            passed=False,
+            skip_minutes=settings.ADX_SKIP_MINUTES,
+            reason=f"No pairs trending: {'; '.join(results)}",
         )
 
 
@@ -153,8 +174,9 @@ def _fetch_news_calendar() -> list[dict]:
         r.raise_for_status()
         return r.json()
     except Exception as e:
-        logger.warning(f"News calendar fetch failed: {e} — treating as no news")
-        return []
+        logger.warning(f"News calendar fetch failed: {e}")
+        # Fail-closed: if we can't check news, block trading
+        return None
 
 
 def check_news_gate(pairs: list[str] | None = None) -> GateResult:
@@ -172,11 +194,21 @@ def check_news_gate(pairs: list[str] | None = None) -> GateResult:
             currencies.add(curr.upper())
 
     events = _fetch_news_calendar()
+
+    # Fail-closed: if calendar fetch failed, block trading
+    if events is None:
+        return GateResult(
+            gate_name="news",
+            passed=False,
+            skip_minutes=5,
+            reason="News calendar unavailable — blocking (fail-closed). Retry in 5min.",
+        )
+
     if not events:
         return GateResult(
             gate_name="news",
             passed=True,
-            reason="No news calendar data available — passing",
+            reason="No news events in calendar — safe to trade",
         )
 
     now_utc = datetime.now(pytz.UTC)
@@ -256,8 +288,8 @@ def run_all_gates(pairs: list[str] | None = None) -> tuple[bool, list[GateResult
         logger.info(f"🚫 Session gate FAILED: {session.reason}")
         return False, results
 
-    # Gate 2: ADX (check first pair as proxy)
-    adx = check_adx_gate(pairs[0])
+    # Gate 2: ADX (checks ALL pairs now)
+    adx = check_adx_gate(pairs)
     results.append(adx)
     if not adx.passed:
         logger.info(f"🚫 ADX gate FAILED: {adx.reason}")

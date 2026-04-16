@@ -85,11 +85,13 @@ class MT5Client:
         if data is None:
             return None
         try:
-            # Calculate spread in pips
+            # Use per-pair pip size for spread calculation
+            pip_size = settings.PAIR_PIP_SIZES.get(symbol, settings.PIP_SIZE)
+
             bid = data.get("bid", 0)
             ask = data.get("ask", 0)
             spread_raw = ask - bid
-            spread_pips = spread_raw / settings.PIP_SIZE if settings.PIP_SIZE > 0 else 0
+            spread_pips = spread_raw / pip_size if pip_size > 0 else 0
             return PriceData(
                 symbol=data.get("symbol", symbol),
                 bid=bid,

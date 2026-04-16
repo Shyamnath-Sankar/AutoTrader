@@ -1,0 +1,591 @@
+2026-04-15 16:06:12 | INFO     | 🚀 Starting Smart Money Trading Bot...
+2026-04-15 16:06:12 | ERROR    | ❌ LLM_API_KEY not set! Set it in .env or settings.py
+2026-04-15 16:06:14 | ERROR    | MT5 API error on GET /account/info: 404 Client Error: Not Found for url: http://localhost:8001/api/v1/account/info
+2026-04-15 16:06:14 | WARNING  | ⚠️  MT5 not connected — bot will still run but cannot execute trades
+2026-04-15 16:06:14 | WARNING  |    Start the MT5 HTTP server: metatrader-http-server --port 8001
+2026-04-15 16:06:14 | INFO     | ✅ Phase 1 scoring: 60 pts across 6 components
+2026-04-15 16:06:14 | INFO     | ✅ Phase 2 scoring: 20 pts across 4 components
+2026-04-15 16:06:14 | ERROR    | Prerequisites not met — fix the issues above and restart
+2026-04-15 16:24:31 | INFO     | 🚀 Starting Smart Money Trading Bot...
+2026-04-15 16:24:31 | INFO     | ✅ LLM API key configured (model: gpt-4o-mini)
+2026-04-15 16:24:33 | ERROR    | MT5 API error on GET /account/info: 404 Client Error: Not Found for url: http://localhost:8001/api/v1/account/info
+2026-04-15 16:24:33 | WARNING  | ⚠️  MT5 not connected — bot will still run but cannot execute trades
+2026-04-15 16:24:33 | WARNING  |    Start the MT5 HTTP server: metatrader-http-server --port 8001
+2026-04-15 16:24:33 | INFO     | ✅ Phase 1 scoring: 60 pts across 6 components
+2026-04-15 16:24:33 | INFO     | ✅ Phase 2 scoring: 20 pts across 4 components
+2026-04-15 16:24:33 | INFO     | ⏰ Scheduler started (UTC timezone)
+2026-04-15 16:24:33 | INFO     | 
+🔄 Running initial analysis cycle...
+2026-04-15 16:24:33 | INFO     | 
+════════════════════════════════════════════════════════════
+2026-04-15 16:24:33 | INFO     | 🔄 ANALYSIS CYCLE START — 2026-04-15 10:54:33 UTC
+2026-04-15 16:24:33 | INFO     |    Mode: demo | Pairs: EURUSD, GBPUSD
+2026-04-15 16:24:33 | INFO     | ════════════════════════════════════════════════════════════
+2026-04-15 16:24:33 | INFO     | 
+📋 Step 1: Running hard gates...
+2026-04-15 16:24:33 | INFO     | ✅ All gates passed
+2026-04-15 16:24:33 | INFO     | 
+📊 Step 2: Collecting market data...
+2026-04-15 16:24:35 | ERROR    | MT5 API error on GET /account/info: 404 Client Error: Not Found for url: http://localhost:8001/api/v1/account/info
+2026-04-15 16:24:35 | WARNING  | Could not fetch MT5 account info — using defaults
+2026-04-15 16:24:37 | ERROR    | MT5 API error on GET /positions: 404 Client Error: Not Found for url: http://localhost:8001/api/v1/positions
+2026-04-15 16:24:37 | INFO     | 📊 Collecting data for EURUSD...
+2026-04-15 16:27:11 | INFO     | 🚀 Starting Smart Money Trading Bot...
+2026-04-15 16:27:11 | INFO     | ✅ LLM API key configured (model: gpt-4o-mini)
+2026-04-15 16:27:13 | ERROR    | MT5 API error on GET /account/info: 404 Client Error: Not Found for url: http://localhost:8001/api/v1/account/info
+2026-04-15 16:27:13 | WARNING  | ⚠️  MT5 not connected — bot will still run but cannot execute trades
+2026-04-15 16:27:13 | WARNING  |    Start the MT5 HTTP server: metatrader-http-server --port 8001
+2026-04-15 16:27:13 | INFO     | ✅ Phase 1 scoring: 60 pts across 6 components
+2026-04-15 16:27:13 | INFO     | ✅ Phase 2 scoring: 20 pts across 4 components
+2026-04-15 16:27:13 | INFO     | ⏰ Scheduler started (UTC timezone)
+2026-04-15 16:27:13 | INFO     | 
+🔄 Running initial analysis cycle...
+2026-04-15 16:27:13 | INFO     | 
+════════════════════════════════════════════════════════════
+2026-04-15 16:27:13 | INFO     | 🔄 ANALYSIS CYCLE START — 2026-04-15 10:57:13 UTC
+2026-04-15 16:27:13 | INFO     |    Mode: demo | Pairs: EURUSD, GBPUSD
+2026-04-15 16:27:13 | INFO     | ════════════════════════════════════════════════════════════
+2026-04-15 16:27:13 | INFO     | 
+📋 Step 1: Running hard gates...
+2026-04-15 16:27:16 | INFO     | ✅ All gates passed
+2026-04-15 16:27:16 | INFO     | 
+📊 Step 2: Collecting market data...
+2026-04-15 16:27:18 | ERROR    | MT5 API error on GET /account/info: 404 Client Error: Not Found for url: http://localhost:8001/api/v1/account/info
+2026-04-15 16:27:18 | WARNING  | Could not fetch MT5 account info — using defaults
+2026-04-15 16:27:20 | ERROR    | MT5 API error on GET /positions: 404 Client Error: Not Found for url: http://localhost:8001/api/v1/positions
+2026-04-15 16:27:20 | INFO     | 📊 Collecting data for EURUSD...
+2026-04-15 16:27:24 | INFO     | 📊 Collecting data for GBPUSD...
+2026-04-15 16:27:27 | INFO     | ✅ Data collection complete for 2 pairs
+2026-04-15 16:27:27 | INFO     | 
+🧠 Step 3: AI Trader Brain analyzing...
+2026-04-15 16:27:27 | INFO     | 🧠 Sending data to AI Trader Brain...
+2026-04-15 16:27:35 | DEBUG    | AI raw response: ```json
+{
+  "decision": "WATCH",
+  "pair": "EURUSD",
+  "direction": "BUY",
+  "phase1_scores": {
+    "regime": 5,
+    "session": 6,
+    "news": 8,
+    "weekly_4h_bias": 12,
+    "trend_1h": 6,
+    "trigger_15m": 4
+  },
+  "phase1_total": 41,
+  "phase2_scores": {
+    "liquidity_sweep": 8,
+    "order_block": 5,
+    "fvg": 4,
+    "bos_choch": 3
+  },
+  "phase2_total": 20,
+  "total_score": 61,
+  "sl_pips": 20,
+  "tp_pips": 60,
+  "rr_ratio": 3.0,
+  "reasoning": "The EURUSD setup shows a mixed but general...
+2026-04-15 16:27:35 | INFO     | 
+────────────────────────────────────────────────────────────
+2026-04-15 16:27:35 | INFO     | 🟡 AI DECISION: WATCH
+2026-04-15 16:27:35 | INFO     |    Pair: EURUSD | Direction: BUY
+2026-04-15 16:27:35 | INFO     |    Phase 1: 41/60 (min 35)
+2026-04-15 16:27:35 | INFO     |      Regime: 5/10 | Session: 6/8 | News: 8/8
+2026-04-15 16:27:35 | INFO     |      Bias: 12/14 | Trend: 6/12 | Trigger: 4/8
+2026-04-15 16:27:35 | INFO     |    Phase 2: 20/20 (min 12)
+2026-04-15 16:27:35 | INFO     |      Liquidity: 8/8 | OB: 5/5 | FVG: 4/4 | BOS: 3/3
+2026-04-15 16:27:35 | INFO     |    Total: 61/80 (min 60)
+2026-04-15 16:27:35 | INFO     |    SL: 20 pips | TP: 60 pips | R:R 1:3.0
+2026-04-15 16:27:35 | INFO     |    Next check in: 10 min
+2026-04-15 16:27:35 | INFO     |    Reason: Price is currently at a key level and showing signs of indecision; waiting for a clearer bullish signal on the 15M chart.
+2026-04-15 16:27:35 | INFO     |    Reasoning: The EURUSD setup shows a mixed but generally favorable context. The ADX indicates a weak trend (14.91), but the 4H chart shows a strong trend with an ADX of 43.72 and clear DI separation. The session quality is good as it is during the London session. There are no high-impact news events within 2 ho...
+2026-04-15 16:27:35 | INFO     | ────────────────────────────────────────────────────────────
+2026-04-15 16:27:35 | INFO     | 🟡 Decision: WATCH — scheduling in 10 min
+2026-04-15 16:27:35 | INFO     | 📝 Trade logged: WATCH EURUSD (score: 61)
+2026-04-15 16:27:35 | INFO     | ⏰ Scheduled analysis in 10 min (at 11:07:35 UTC)
+2026-04-15 16:27:35 | INFO     |    Reason: Price is currently at a key level and showing signs of indecision; waiting for a clearer bullish signal on the 15M chart.
+2026-04-15 16:27:35 | INFO     | 
+⏳ Bot is running. Press Ctrl+C to stop.
+2026-04-15 16:34:21 | INFO     | 
+🛑 Shutdown requested — finishing current cycle...
+2026-04-15 16:34:21 | INFO     | 🛑 Shutting down bot...
+2026-04-15 16:34:21 | INFO     | ⏰ Scheduler stopped
+2026-04-15 16:34:21 | INFO     | 👋 Smart Money Trading Bot stopped. Goodbye!
+2026-04-15 16:34:26 | INFO     | 🚀 Starting Smart Money Trading Bot...
+2026-04-15 16:34:26 | INFO     | ✅ LLM API key configured (model: gpt-4o-mini)
+2026-04-15 16:34:30 | INFO     | ✅ MT5 connected — Balance: $3000.00 | Leverage: 1:2000
+2026-04-15 16:34:30 | INFO     | ✅ Phase 1 scoring: 60 pts across 6 components
+2026-04-15 16:34:30 | INFO     | ✅ Phase 2 scoring: 20 pts across 4 components
+2026-04-15 16:34:30 | INFO     | ⏰ Scheduler started (UTC timezone)
+2026-04-15 16:34:30 | INFO     | 
+🔄 Running initial analysis cycle...
+2026-04-15 16:34:30 | INFO     | 
+════════════════════════════════════════════════════════════
+2026-04-15 16:34:30 | INFO     | 🔄 ANALYSIS CYCLE START — 2026-04-15 11:04:30 UTC
+2026-04-15 16:34:30 | INFO     |    Mode: demo | Pairs: EURUSD, GBPUSD
+2026-04-15 16:34:30 | INFO     | ════════════════════════════════════════════════════════════
+2026-04-15 16:34:30 | INFO     | 
+📋 Step 1: Running hard gates...
+2026-04-15 16:34:31 | INFO     | ✅ All gates passed
+2026-04-15 16:34:31 | INFO     | 
+📊 Step 2: Collecting market data...
+2026-04-15 16:34:35 | INFO     | 📊 Collecting data for EURUSD...
+2026-04-15 16:37:52 | INFO     | 🚀 Starting Smart Money Trading Bot...
+2026-04-15 16:37:52 | INFO     | ✅ LLM API key configured (model: gpt-4o-mini)
+2026-04-15 16:37:56 | ERROR    | MT5 API connection failed — is metatrader-http-server running on http://localhost:8001/api/v1?
+2026-04-15 16:37:56 | WARNING  | ⚠️  MT5 not connected — bot will still run but cannot execute trades
+2026-04-15 16:37:56 | WARNING  |    Start the MT5 HTTP server: metatrader-http-server --port 8001
+2026-04-15 16:37:56 | INFO     | ✅ Phase 1 scoring: 60 pts across 6 components
+2026-04-15 16:37:56 | INFO     | ✅ Phase 2 scoring: 20 pts across 4 components
+2026-04-15 16:37:56 | INFO     | ⏰ Scheduler started (UTC timezone)
+2026-04-15 16:37:56 | INFO     | 
+🔄 Running initial analysis cycle...
+2026-04-15 16:37:56 | INFO     | 
+════════════════════════════════════════════════════════════
+2026-04-15 16:37:56 | INFO     | 🔄 ANALYSIS CYCLE START — 2026-04-15 11:07:56 UTC
+2026-04-15 16:37:56 | INFO     |    Mode: demo | Pairs: EURUSD, GBPUSD
+2026-04-15 16:37:56 | INFO     | ════════════════════════════════════════════════════════════
+2026-04-15 16:37:56 | INFO     | 
+📋 Step 1: Running hard gates...
+2026-04-15 16:37:57 | INFO     | ✅ All gates passed
+2026-04-15 16:37:57 | INFO     | 
+📊 Step 2: Collecting market data...
+2026-04-15 16:38:01 | INFO     | 📊 Collecting data for EURUSD...
+2026-04-15 16:39:01 | INFO     | 🚀 Starting Smart Money Trading Bot...
+2026-04-15 16:39:01 | INFO     | ✅ LLM API key configured (model: gpt-4o-mini)
+2026-04-15 16:39:05 | INFO     | ✅ MT5 connected — Balance: $3000.00 | Leverage: 1:2000
+2026-04-15 16:39:05 | INFO     | ✅ Phase 1 scoring: 60 pts across 6 components
+2026-04-15 16:39:05 | INFO     | ✅ Phase 2 scoring: 20 pts across 4 components
+2026-04-15 16:39:05 | INFO     | ⏰ Scheduler started (UTC timezone)
+2026-04-15 16:39:05 | INFO     | 
+🔄 Running initial analysis cycle...
+2026-04-15 16:39:05 | INFO     | 
+════════════════════════════════════════════════════════════
+2026-04-15 16:39:05 | INFO     | 🔄 ANALYSIS CYCLE START — 2026-04-15 11:09:05 UTC
+2026-04-15 16:39:05 | INFO     |    Mode: demo | Pairs: EURUSD, GBPUSD
+2026-04-15 16:39:05 | INFO     | ════════════════════════════════════════════════════════════
+2026-04-15 16:39:05 | INFO     | 
+📋 Step 1: Running hard gates...
+2026-04-15 16:39:06 | WARNING  | News calendar fetch failed: 429 Client Error: Too Many Requests for url: https://nfs.faireconomy.media/ff_calendar_thisweek.json — treating as no news
+2026-04-15 16:39:06 | INFO     | ✅ All gates passed
+2026-04-15 16:39:06 | INFO     | 
+📊 Step 2: Collecting market data...
+2026-04-15 16:39:10 | INFO     | 📊 Collecting data for EURUSD...
+2026-04-15 16:39:12 | INFO     | 📊 Collecting data for GBPUSD...
+2026-04-15 16:39:14 | INFO     | ✅ Data collection complete for 2 pairs
+2026-04-15 16:39:14 | INFO     | 
+🧠 Step 3: AI Trader Brain analyzing...
+2026-04-15 16:40:04 | INFO     | 🚀 Starting Smart Money Trading Bot...
+2026-04-15 16:40:04 | INFO     | ✅ LLM API key configured (model: gpt-4o-mini)
+2026-04-15 16:40:08 | INFO     | ✅ MT5 connected — Balance: $3000.00 | Leverage: 1:2000
+2026-04-15 16:40:08 | INFO     | ✅ Phase 1 scoring: 60 pts across 6 components
+2026-04-15 16:40:08 | INFO     | ✅ Phase 2 scoring: 20 pts across 4 components
+2026-04-15 16:40:08 | INFO     | ⏰ Scheduler started (UTC timezone)
+2026-04-15 16:40:08 | INFO     | 
+🔄 Running initial analysis cycle...
+2026-04-15 16:40:08 | INFO     | 
+════════════════════════════════════════════════════════════
+2026-04-15 16:40:08 | INFO     | 🔄 ANALYSIS CYCLE START — 2026-04-15 11:10:08 UTC
+2026-04-15 16:40:08 | INFO     |    Mode: demo | Pairs: EURUSD, GBPUSD
+2026-04-15 16:40:08 | INFO     | ════════════════════════════════════════════════════════════
+2026-04-15 16:40:08 | INFO     | 
+📋 Step 1: Running hard gates...
+2026-04-15 16:40:09 | ERROR    | ADX gate error for EURUSD: Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.
+2026-04-15 16:40:09 | WARNING  | News calendar fetch failed: 429 Client Error: Too Many Requests for url: https://nfs.faireconomy.media/ff_calendar_thisweek.json — treating as no news
+2026-04-15 16:40:09 | INFO     | ✅ All gates passed
+2026-04-15 16:40:09 | INFO     | 
+📊 Step 2: Collecting market data...
+2026-04-15 16:40:13 | INFO     | 📊 Collecting data for EURUSD...
+2026-04-15 16:40:13 | ERROR    | tradingview-ta error for EURUSD weekly: Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.
+2026-04-15 16:40:13 | WARNING  | Missing indicators for EURUSD weekly
+2026-04-15 16:40:13 | ERROR    | tradingview-ta error for EURUSD 4h: Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.
+2026-04-15 16:40:13 | WARNING  | Missing indicators for EURUSD 4h
+2026-04-15 16:40:13 | ERROR    | tradingview-ta error for EURUSD 1h: Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.
+2026-04-15 16:40:13 | WARNING  | Missing indicators for EURUSD 1h
+2026-04-15 16:40:13 | ERROR    | tradingview-ta error for EURUSD 15m: Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.
+2026-04-15 16:40:13 | WARNING  | Missing indicators for EURUSD 15m
+2026-04-15 16:40:14 | INFO     | 📊 Collecting data for GBPUSD...
+2026-04-15 16:40:14 | ERROR    | tradingview-ta error for GBPUSD weekly: Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.
+2026-04-15 16:40:14 | WARNING  | Missing indicators for GBPUSD weekly
+2026-04-15 16:40:15 | ERROR    | tradingview-ta error for GBPUSD 4h: Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.
+2026-04-15 16:40:15 | WARNING  | Missing indicators for GBPUSD 4h
+2026-04-15 16:40:15 | ERROR    | tradingview-ta error for GBPUSD 1h: Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.
+2026-04-15 16:40:15 | WARNING  | Missing indicators for GBPUSD 1h
+2026-04-15 16:40:15 | ERROR    | tradingview-ta error for GBPUSD 15m: Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.
+2026-04-15 16:40:15 | WARNING  | Missing indicators for GBPUSD 15m
+2026-04-15 16:40:15 | INFO     | ✅ Data collection complete for 2 pairs
+2026-04-15 16:40:15 | INFO     | 
+🧠 Step 3: AI Trader Brain analyzing...
+2026-04-15 16:40:15 | INFO     | 🧠 Sending data to AI Trader Brain...
+2026-04-15 16:40:22 | DEBUG    | AI raw response: {
+  "decision": "EXECUTE",
+  "pair": "EURUSD",
+  "direction": "BUY",
+  "phase1_scores": {
+    "regime": 10,
+    "session": 8,
+    "news": 8,
+    "weekly_4h_bias": 14,
+    "trend_1h": 12,
+    "trigger_15m": 8
+  },
+  "phase1_total": 60,
+  "phase2_scores": {
+    "liquidity_sweep": 8,
+    "order_block": 5,
+    "fvg": 4,
+    "bos_choch": 3
+  },
+  "phase2_total": 20,
+  "total_score": 80,
+  "sl_pips": 20,
+  "tp_pips": 60,
+  "rr_ratio": 1.5,
+  "reasoning": "For EURUSD, the market is in a strong bullish ...
+2026-04-15 16:40:22 | INFO     | 
+────────────────────────────────────────────────────────────
+2026-04-15 16:40:22 | INFO     | 🟢 AI DECISION: EXECUTE
+2026-04-15 16:40:22 | INFO     |    Pair: EURUSD | Direction: BUY
+2026-04-15 16:40:22 | INFO     |    Phase 1: 60/60 (min 35)
+2026-04-15 16:40:22 | INFO     |      Regime: 10/10 | Session: 8/8 | News: 8/8
+2026-04-15 16:40:22 | INFO     |      Bias: 14/14 | Trend: 12/12 | Trigger: 8/8
+2026-04-15 16:40:22 | INFO     |    Phase 2: 20/20 (min 12)
+2026-04-15 16:40:22 | INFO     |      Liquidity: 8/8 | OB: 5/5 | FVG: 4/4 | BOS: 3/3
+2026-04-15 16:40:22 | INFO     |    Total: 80/80 (min 60)
+2026-04-15 16:40:22 | INFO     |    SL: 20 pips | TP: 60 pips | R:R 1:1.5
+2026-04-15 16:40:22 | INFO     |    Reasoning: For EURUSD, the market is in a strong bullish trend with an ADX above 25 and clear DI separation, scoring 10 points for regime. The current session is during the London-NY overlap, giving it an 8 for session quality. There are no high-impact news events within 2 hours, so it scores 8 for news distan...
+2026-04-15 16:40:22 | INFO     | ────────────────────────────────────────────────────────────
+2026-04-15 16:40:22 | INFO     | 🟢 Decision: EXECUTE — running risk engine...
+2026-04-15 16:40:22 | INFO     | ⚖️  Running Risk Engine...
+2026-04-15 16:40:26 | INFO     | 🚫 Risk REJECTED (hard check): SL too wide (20 pips) for risk budget ($2.0)
+2026-04-15 16:40:26 | INFO     | 🚫 Risk REJECTED: SL too wide (20 pips) for risk budget ($2.0)
+2026-04-15 16:40:26 | INFO     | 📝 Trade logged: EXECUTE EURUSD (score: 80)
+2026-04-15 16:40:26 | INFO     | ⏰ Scheduled analysis in 15 min (at 11:25:26 UTC)
+2026-04-15 16:40:26 | INFO     |    Reason: Default scan interval
+2026-04-15 16:40:26 | INFO     | 
+⏳ Bot is running. Press Ctrl+C to stop.
+2026-04-15 16:40:54 | INFO     | 
+🛑 Shutdown requested — finishing current cycle...
+2026-04-15 16:40:55 | INFO     | 🛑 Shutting down bot...
+2026-04-15 16:40:55 | INFO     | ⏰ Scheduler stopped
+2026-04-15 16:40:55 | INFO     | 👋 Smart Money Trading Bot stopped. Goodbye!
+2026-04-16 16:03:46 | INFO     | 🚀 Starting Smart Money Trading Bot...
+2026-04-16 16:03:46 | INFO     | ✅ LLM API key configured (model: gpt-4o-mini)
+2026-04-16 16:03:48 | ERROR    | MT5 API error on GET /account/info: 404 Client Error: Not Found for url: http://localhost:8001/api/v1/account/info
+2026-04-16 16:03:48 | WARNING  | ⚠️  MT5 not connected — bot will still run but cannot execute trades
+2026-04-16 16:03:48 | WARNING  |    Start the MT5 HTTP server: metatrader-http-server --port 8001
+2026-04-16 16:03:48 | INFO     | ✅ Phase 1 scoring: 60 pts across 6 components
+2026-04-16 16:03:48 | INFO     | ✅ Phase 2 scoring: 20 pts across 4 components
+2026-04-16 16:03:48 | INFO     | ⏰ Scheduler started (UTC timezone)
+2026-04-16 16:03:48 | INFO     | 
+🔄 Running initial analysis cycle...
+2026-04-16 16:03:48 | INFO     | 
+════════════════════════════════════════════════════════════
+2026-04-16 16:03:48 | INFO     | 🔄 ANALYSIS CYCLE START — 2026-04-16 10:33:48 UTC
+2026-04-16 16:03:48 | INFO     |    Mode: demo | Pairs: EURUSD, GBPUSD
+2026-04-16 16:03:48 | INFO     | ════════════════════════════════════════════════════════════
+2026-04-16 16:03:48 | INFO     | 
+📋 Step 1: Running hard gates...
+2026-04-16 16:03:48 | INFO     | ✅ All gates passed
+2026-04-16 16:03:48 | INFO     | 
+📊 Step 2: Collecting market data...
+2026-04-16 16:03:50 | ERROR    | MT5 API error on GET /account/info: 404 Client Error: Not Found for url: http://localhost:8001/api/v1/account/info
+2026-04-16 16:03:50 | WARNING  | Could not fetch MT5 account info — using defaults
+2026-04-16 16:03:52 | ERROR    | MT5 API error on GET /positions: 404 Client Error: Not Found for url: http://localhost:8001/api/v1/positions
+2026-04-16 16:03:52 | INFO     | 📊 Collecting data for EURUSD...
+2026-04-16 16:03:57 | INFO     | 📊 Collecting data for GBPUSD...
+2026-04-16 16:03:59 | INFO     | ✅ Data collection complete for 2 pairs
+2026-04-16 16:03:59 | INFO     | 
+🧠 Step 3: AI Trader Brain analyzing...
+2026-04-16 16:03:59 | INFO     | 
+🛑 Shutdown requested — finishing current cycle...
+2026-04-16 16:03:59 | INFO     | 🧠 Sending data to AI Trader Brain...
+2026-04-16 16:03:59 | INFO     | 
+🛑 Shutdown requested — finishing current cycle...
+2026-04-16 16:03:59 | INFO     | 
+🛑 Shutdown requested — finishing current cycle...
+2026-04-16 16:04:05 | DEBUG    | AI raw response: {
+  "decision": "EXECUTE",
+  "pair": "EURUSD",
+  "direction": "BUY",
+  "phase1_scores": {
+    "regime": 6,
+    "session": 8,
+    "news": 8,
+    "weekly_4h_bias": 12,
+    "trend_1h": 6,
+    "trigger_15m": 6
+  },
+  "phase1_total": 48,
+  "phase2_scores": {
+    "liquidity_sweep": 8,
+    "order_block": 5,
+    "fvg": 4,
+    "bos_choch": 3
+  },
+  "phase2_total": 20,
+  "total_score": 68,
+  "sl_pips": 20,
+  "tp_pips": 60,
+  "rr_ratio": 1.5,
+  "reasoning": "For EURUSD, the ADX indicates a strong trend wit...
+2026-04-16 16:04:05 | INFO     | 
+────────────────────────────────────────────────────────────
+2026-04-16 16:04:05 | INFO     | 🟢 AI DECISION: EXECUTE
+2026-04-16 16:04:05 | INFO     |    Pair: EURUSD | Direction: BUY
+2026-04-16 16:04:05 | INFO     |    Phase 1: 48/60 (min 35)
+2026-04-16 16:04:05 | INFO     |      Regime: 6/10 | Session: 8/8 | News: 8/8
+2026-04-16 16:04:05 | INFO     |      Bias: 12/14 | Trend: 6/12 | Trigger: 6/8
+2026-04-16 16:04:05 | INFO     |    Phase 2: 20/20 (min 12)
+2026-04-16 16:04:05 | INFO     |      Liquidity: 8/8 | OB: 5/5 | FVG: 4/4 | BOS: 3/3
+2026-04-16 16:04:05 | INFO     |    Total: 68/80 (min 60)
+2026-04-16 16:04:05 | INFO     |    SL: 20 pips | TP: 60 pips | R:R 1:1.5
+2026-04-16 16:04:05 | INFO     |    Reasoning: For EURUSD, the ADX indicates a strong trend with a value of 42 on the 4H chart, and the +DI is significantly above the -DI, scoring 6 points for regime. The session quality is optimal as it is during the London-NY overlap, earning a full score of 8. There are no high-impact news events within 2 hou...
+2026-04-16 16:04:05 | INFO     | ────────────────────────────────────────────────────────────
+2026-04-16 16:04:05 | INFO     | 🟢 Decision: EXECUTE — running risk engine...
+2026-04-16 16:04:05 | INFO     | ⚖️  Running Risk Engine...
+2026-04-16 16:04:07 | ERROR    | MT5 API error on GET /positions: 404 Client Error: Not Found for url: http://localhost:8001/api/v1/positions
+2026-04-16 16:04:09 | ERROR    | MT5 API error on GET /account/info: 404 Client Error: Not Found for url: http://localhost:8001/api/v1/account/info
+2026-04-16 16:04:09 | INFO     | 🚫 Risk REJECTED (hard check): SL too wide (20 pips) for risk budget ($2.0)
+2026-04-16 16:04:09 | INFO     | 🚫 Risk REJECTED: SL too wide (20 pips) for risk budget ($2.0)
+2026-04-16 16:04:09 | INFO     | 📝 Trade logged: EXECUTE EURUSD (score: 68)
+2026-04-16 16:04:09 | INFO     | ⏰ Scheduled analysis in 15 min (at 10:49:09 UTC)
+2026-04-16 16:04:09 | INFO     |    Reason: Default scan interval
+2026-04-16 16:04:09 | INFO     | 
+⏳ Bot is running. Press Ctrl+C to stop.
+2026-04-16 16:04:09 | INFO     | 🛑 Shutting down bot...
+2026-04-16 16:04:09 | INFO     | ⏰ Scheduler stopped
+2026-04-16 16:04:09 | INFO     | 👋 Smart Money Trading Bot stopped. Goodbye!
+2026-04-16 16:07:43 | INFO     | 🚀 Starting Smart Money Trading Bot...
+2026-04-16 16:07:43 | INFO     | ✅ LLM API key configured (model: gpt-4o-mini)
+2026-04-16 16:07:45 | ERROR    | MT5 API error on GET /account/info: 404 Client Error: Not Found for url: http://localhost:8001/api/v1/account/info
+2026-04-16 16:07:45 | WARNING  | ⚠️  MT5 not connected — bot will still run but cannot execute trades
+2026-04-16 16:07:45 | WARNING  |    Start the MT5 HTTP server: metatrader-http-server --port 8001
+2026-04-16 16:07:45 | INFO     | ✅ Phase 1 scoring: 60 pts across 6 components
+2026-04-16 16:07:45 | INFO     | ✅ Phase 2 scoring: 20 pts across 4 components
+2026-04-16 16:07:45 | INFO     | ⏰ Scheduler started (UTC timezone)
+2026-04-16 16:07:45 | INFO     | 
+🔄 Running initial analysis cycle...
+2026-04-16 16:07:45 | INFO     | 
+════════════════════════════════════════════════════════════
+2026-04-16 16:07:45 | INFO     | 🔄 ANALYSIS CYCLE START — 2026-04-16 10:37:45 UTC
+2026-04-16 16:07:45 | INFO     |    Mode: demo | Pairs: EURUSD, GBPUSD
+2026-04-16 16:07:45 | INFO     | ════════════════════════════════════════════════════════════
+2026-04-16 16:07:45 | INFO     | 
+📋 Step 1: Running hard gates...
+2026-04-16 16:07:45 | WARNING  | News calendar fetch failed: 429 Client Error: Too Many Requests for url: https://nfs.faireconomy.media/ff_calendar_thisweek.json — treating as no news
+2026-04-16 16:07:45 | INFO     | ✅ All gates passed
+2026-04-16 16:07:45 | INFO     | 
+📊 Step 2: Collecting market data...
+2026-04-16 16:07:47 | ERROR    | MT5 API error on GET /account/info: 404 Client Error: Not Found for url: http://localhost:8001/api/v1/account/info
+2026-04-16 16:07:47 | WARNING  | Could not fetch MT5 account info — using defaults
+2026-04-16 16:07:49 | ERROR    | MT5 API error on GET /positions: 404 Client Error: Not Found for url: http://localhost:8001/api/v1/positions
+2026-04-16 16:07:49 | INFO     | 📊 Collecting data for EURUSD...
+2026-04-16 16:07:52 | INFO     | 📊 Collecting data for GBPUSD...
+2026-04-16 16:07:53 | INFO     | ✅ Data collection complete for 2 pairs
+2026-04-16 16:07:53 | INFO     | 
+🧠 Step 3: AI Trader Brain analyzing...
+2026-04-16 16:07:53 | INFO     | 🧠 Sending data to AI Trader Brain...
+2026-04-16 16:07:59 | DEBUG    | AI raw response: {
+  "decision": "EXECUTE",
+  "pair": "EURUSD",
+  "direction": "BUY",
+  "phase1_scores": {
+    "regime": 6,
+    "session": 8,
+    "news": 8,
+    "weekly_4h_bias": 12,
+    "trend_1h": 6,
+    "trigger_15m": 5
+  },
+  "phase1_total": 47,
+  "phase2_scores": {
+    "liquidity_sweep": 8,
+    "order_block": 5,
+    "fvg": 4,
+    "bos_choch": 3
+  },
+  "phase2_total": 20,
+  "total_score": 67,
+  "sl_pips": 20,
+  "tp_pips": 60,
+  "rr_ratio": 1.5,
+  "reasoning": "The EURUSD setup shows a strong bullish bias wit...
+2026-04-16 16:07:59 | INFO     | 
+────────────────────────────────────────────────────────────
+2026-04-16 16:07:59 | INFO     | 🟢 AI DECISION: EXECUTE
+2026-04-16 16:07:59 | INFO     |    Pair: EURUSD | Direction: BUY
+2026-04-16 16:07:59 | INFO     |    Phase 1: 47/60 (min 35)
+2026-04-16 16:07:59 | INFO     |      Regime: 6/10 | Session: 8/8 | News: 8/8
+2026-04-16 16:07:59 | INFO     |      Bias: 12/14 | Trend: 6/12 | Trigger: 5/8
+2026-04-16 16:07:59 | INFO     |    Phase 2: 20/20 (min 12)
+2026-04-16 16:07:59 | INFO     |      Liquidity: 8/8 | OB: 5/5 | FVG: 4/4 | BOS: 3/3
+2026-04-16 16:07:59 | INFO     |    Total: 67/80 (min 60)
+2026-04-16 16:07:59 | INFO     |    SL: 20 pips | TP: 60 pips | R:R 1:1.5
+2026-04-16 16:07:59 | INFO     |    Reasoning: The EURUSD setup shows a strong bullish bias with a solid market context. The ADX indicates a trending market with a value of 42 on the 4H chart, and the +DI is well above the -DI. The session quality is optimal as it is during the London-NY overlap. There are no high-impact news events within 2 hou...
+2026-04-16 16:07:59 | INFO     | ────────────────────────────────────────────────────────────
+2026-04-16 16:07:59 | INFO     | 🟢 Decision: EXECUTE — running risk engine...
+2026-04-16 16:07:59 | INFO     | ⚖️  Running Risk Engine...
+2026-04-16 16:08:01 | ERROR    | MT5 API error on GET /positions: 404 Client Error: Not Found for url: http://localhost:8001/api/v1/positions
+2026-04-16 16:08:03 | ERROR    | MT5 API error on GET /account/info: 404 Client Error: Not Found for url: http://localhost:8001/api/v1/account/info
+2026-04-16 16:08:03 | INFO     | 🚫 Risk REJECTED (hard check): SL too wide (20 pips) for risk budget ($2.0)
+2026-04-16 16:08:03 | INFO     | 🚫 Risk REJECTED: SL too wide (20 pips) for risk budget ($2.0)
+2026-04-16 16:08:03 | INFO     | 📝 Trade logged: EXECUTE EURUSD (score: 67)
+2026-04-16 16:08:03 | INFO     | ⏰ Scheduled analysis in 15 min (at 10:53:03 UTC)
+2026-04-16 16:08:03 | INFO     |    Reason: Default scan interval
+2026-04-16 16:08:03 | INFO     | 
+⏳ Bot is running. Press Ctrl+C to stop.
+2026-04-16 16:09:00 | INFO     | 
+🛑 Shutdown requested — finishing current cycle...
+2026-04-16 16:09:00 | INFO     | 🛑 Shutting down bot...
+2026-04-16 16:09:00 | INFO     | ⏰ Scheduler stopped
+2026-04-16 16:09:00 | INFO     | 👋 Smart Money Trading Bot stopped. Goodbye!
+2026-04-16 16:09:03 | INFO     | 🚀 Starting Smart Money Trading Bot...
+2026-04-16 16:09:03 | INFO     | ✅ LLM API key configured (model: gpt-4o-mini)
+2026-04-16 16:09:07 | INFO     | ✅ MT5 connected — Balance: $3000.00 | Leverage: 1:2000
+2026-04-16 16:09:07 | INFO     | ✅ Phase 1 scoring: 60 pts across 6 components
+2026-04-16 16:09:07 | INFO     | ✅ Phase 2 scoring: 20 pts across 4 components
+2026-04-16 16:09:07 | INFO     | ⏰ Scheduler started (UTC timezone)
+2026-04-16 16:09:07 | INFO     | 
+🔄 Running initial analysis cycle...
+2026-04-16 16:09:07 | INFO     | 
+════════════════════════════════════════════════════════════
+2026-04-16 16:09:07 | INFO     | 🔄 ANALYSIS CYCLE START — 2026-04-16 10:39:07 UTC
+2026-04-16 16:09:07 | INFO     |    Mode: demo | Pairs: EURUSD, GBPUSD
+2026-04-16 16:09:07 | INFO     | ════════════════════════════════════════════════════════════
+2026-04-16 16:09:07 | INFO     | 
+📋 Step 1: Running hard gates...
+2026-04-16 16:09:07 | ERROR    | ADX gate error for EURUSD: Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.
+2026-04-16 16:09:07 | INFO     | ✅ All gates passed
+2026-04-16 16:09:07 | INFO     | 
+📊 Step 2: Collecting market data...
+2026-04-16 16:09:12 | INFO     | 📊 Collecting data for EURUSD...
+2026-04-16 16:09:12 | ERROR    | tradingview-ta error for EURUSD weekly: Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.
+2026-04-16 16:09:12 | WARNING  | Missing indicators for EURUSD weekly
+2026-04-16 16:09:12 | ERROR    | tradingview-ta error for EURUSD 4h: Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.
+2026-04-16 16:09:12 | WARNING  | Missing indicators for EURUSD 4h
+2026-04-16 16:09:12 | ERROR    | tradingview-ta error for EURUSD 1h: Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.
+2026-04-16 16:09:12 | WARNING  | Missing indicators for EURUSD 1h
+2026-04-16 16:09:12 | ERROR    | tradingview-ta error for EURUSD 15m: Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.
+2026-04-16 16:09:12 | WARNING  | Missing indicators for EURUSD 15m
+2026-04-16 16:09:13 | INFO     | 📊 Collecting data for GBPUSD...
+2026-04-16 16:09:13 | ERROR    | tradingview-ta error for GBPUSD weekly: Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.
+2026-04-16 16:09:13 | WARNING  | Missing indicators for GBPUSD weekly
+2026-04-16 16:09:13 | ERROR    | tradingview-ta error for GBPUSD 4h: Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.
+2026-04-16 16:09:13 | WARNING  | Missing indicators for GBPUSD 4h
+2026-04-16 16:09:13 | ERROR    | tradingview-ta error for GBPUSD 1h: Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.
+2026-04-16 16:09:13 | WARNING  | Missing indicators for GBPUSD 1h
+2026-04-16 16:09:13 | ERROR    | tradingview-ta error for GBPUSD 15m: Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.
+2026-04-16 16:09:13 | WARNING  | Missing indicators for GBPUSD 15m
+2026-04-16 16:09:14 | INFO     | ✅ Data collection complete for 2 pairs
+2026-04-16 16:09:14 | INFO     | 
+🧠 Step 3: AI Trader Brain analyzing...
+2026-04-16 16:09:14 | INFO     | 🧠 Sending data to AI Trader Brain...
+2026-04-16 16:09:18 | DEBUG    | AI raw response: {
+  "decision": "EXECUTE",
+  "pair": "EURUSD",
+  "direction": "BUY",
+  "phase1_scores": {
+    "regime": 8,
+    "session": 6,
+    "news": 8,
+    "weekly_4h_bias": 12,
+    "trend_1h": 10,
+    "trigger_15m": 6
+  },
+  "phase1_total": 50,
+  "phase2_scores": {
+    "liquidity_sweep": 8,
+    "order_block": 5,
+    "fvg": 3,
+    "bos_choch": 3
+  },
+  "phase2_total": 19,
+  "total_score": 69,
+  "sl_pips": 15,
+  "tp_pips": 45,
+  "rr_ratio": 1.5,
+  "reasoning": "The EURUSD setup shows a strong bullish trend w...
+2026-04-16 16:09:18 | INFO     | 
+────────────────────────────────────────────────────────────
+2026-04-16 16:09:18 | INFO     | 🟢 AI DECISION: EXECUTE
+2026-04-16 16:09:18 | INFO     |    Pair: EURUSD | Direction: BUY
+2026-04-16 16:09:18 | INFO     |    Phase 1: 50/60 (min 35)
+2026-04-16 16:09:18 | INFO     |      Regime: 8/10 | Session: 6/8 | News: 8/8
+2026-04-16 16:09:18 | INFO     |      Bias: 12/14 | Trend: 10/12 | Trigger: 6/8
+2026-04-16 16:09:18 | INFO     |    Phase 2: 19/20 (min 12)
+2026-04-16 16:09:18 | INFO     |      Liquidity: 8/8 | OB: 5/5 | FVG: 3/4 | BOS: 3/3
+2026-04-16 16:09:18 | INFO     |    Total: 69/80 (min 60)
+2026-04-16 16:09:18 | INFO     |    SL: 15 pips | TP: 45 pips | R:R 1:1.5
+2026-04-16 16:09:18 | INFO     |    Reasoning: The EURUSD setup shows a strong bullish trend with an ADX of 28 indicating a strong trend. The session quality is good as it is during the London-NY overlap. There are no high-impact news events within the next two hours, allowing for a clear trading environment. The weekly and 4H EMAs are aligned b...
+2026-04-16 16:09:18 | INFO     | ────────────────────────────────────────────────────────────
+2026-04-16 16:09:18 | INFO     | 🟢 Decision: EXECUTE — running risk engine...
+2026-04-16 16:09:18 | INFO     | ⚖️  Running Risk Engine...
+2026-04-16 16:09:22 | INFO     | 🚫 Risk REJECTED (hard check): R:R ratio 1.5 below minimum 2.0
+2026-04-16 16:09:22 | INFO     | 🚫 Risk REJECTED: R:R ratio 1.5 below minimum 2.0
+2026-04-16 16:09:22 | INFO     | 📝 Trade logged: EXECUTE EURUSD (score: 69)
+2026-04-16 16:09:22 | INFO     | ⏰ Scheduled analysis in 15 min (at 10:54:22 UTC)
+2026-04-16 16:09:22 | INFO     |    Reason: Default scan interval
+2026-04-16 16:09:22 | INFO     | 
+⏳ Bot is running. Press Ctrl+C to stop.
+2026-04-16 16:24:22 | INFO     | 
+════════════════════════════════════════════════════════════
+2026-04-16 16:24:22 | INFO     | 🔄 ANALYSIS CYCLE START — 2026-04-16 10:54:22 UTC
+2026-04-16 16:24:22 | INFO     |    Mode: demo | Pairs: EURUSD, GBPUSD
+2026-04-16 16:24:22 | INFO     | ════════════════════════════════════════════════════════════
+2026-04-16 16:24:22 | INFO     | 
+📋 Step 1: Running hard gates...
+2026-04-16 16:24:23 | INFO     | ✅ All gates passed
+2026-04-16 16:24:23 | INFO     | 
+📊 Step 2: Collecting market data...
+2026-04-16 16:24:27 | INFO     | 📊 Collecting data for EURUSD...
+2026-04-16 16:24:29 | INFO     | 📊 Collecting data for GBPUSD...
+2026-04-16 16:24:31 | INFO     | ✅ Data collection complete for 2 pairs
+2026-04-16 16:24:31 | INFO     | 
+🧠 Step 3: AI Trader Brain analyzing...
+2026-04-16 16:24:31 | INFO     | 🧠 Sending data to AI Trader Brain...
+2026-04-16 16:24:36 | DEBUG    | AI raw response: {
+  "decision": "EXECUTE",
+  "pair": "EURUSD",
+  "direction": "BUY",
+  "phase1_scores": {
+    "regime": 6,
+    "session": 8,
+    "news": 6,
+    "weekly_4h_bias": 12,
+    "trend_1h": 6,
+    "trigger_15m": 5
+  },
+  "phase1_total": 43,
+  "phase2_scores": {
+    "liquidity_sweep": 8,
+    "order_block": 5,
+    "fvg": 4,
+    "bos_choch": 3
+  },
+  "phase2_total": 20,
+  "total_score": 63,
+  "sl_pips": 20,
+  "tp_pips": 60,
+  "rr_ratio": 3.0,
+  "reasoning": "The EURUSD setup shows a strong bullish bias wit...
+2026-04-16 16:24:36 | INFO     | 
+────────────────────────────────────────────────────────────
+2026-04-16 16:24:36 | INFO     | 🟢 AI DECISION: EXECUTE
+2026-04-16 16:24:36 | INFO     |    Pair: EURUSD | Direction: BUY
+2026-04-16 16:24:36 | INFO     |    Phase 1: 43/60 (min 35)
+2026-04-16 16:24:36 | INFO     |      Regime: 6/10 | Session: 8/8 | News: 6/8
+2026-04-16 16:24:36 | INFO     |      Bias: 12/14 | Trend: 6/12 | Trigger: 5/8
+2026-04-16 16:24:36 | INFO     |    Phase 2: 20/20 (min 12)
+2026-04-16 16:24:36 | INFO     |      Liquidity: 8/8 | OB: 5/5 | FVG: 4/4 | BOS: 3/3
+2026-04-16 16:24:36 | INFO     |    Total: 63/80 (min 60)
+2026-04-16 16:24:36 | INFO     |    SL: 20 pips | TP: 60 pips | R:R 1:3.0
+2026-04-16 16:24:36 | INFO     |    Reasoning: The EURUSD setup shows a strong bullish bias with a solid phase 1 score of 43. The ADX indicates a trending market with a value of 42 on the 4H chart, and the +DI is above the -DI, confirming the bullish trend. The session is currently in the London-NY overlap, which is optimal for trading. There ar...
+2026-04-16 16:24:36 | INFO     | ────────────────────────────────────────────────────────────
+2026-04-16 16:24:36 | INFO     | 🟢 Decision: EXECUTE — running risk engine...
+2026-04-16 16:24:36 | INFO     | ⚖️  Running Risk Engine...
+2026-04-16 16:24:40 | INFO     | 🚫 Risk REJECTED (hard check): SL too wide (20 pips) for risk budget ($2.0)
+2026-04-16 16:24:40 | INFO     | 🚫 Risk REJECTED: SL too wide (20 pips) for risk budget ($2.0)
+2026-04-16 16:24:40 | INFO     | 📝 Trade logged: EXECUTE EURUSD (score: 63)
+2026-04-16 16:24:40 | INFO     | ⏰ Scheduled analysis in 15 min (at 11:09:40 UTC)
+2026-04-16 16:24:40 | INFO     |    Reason: Default scan interval
