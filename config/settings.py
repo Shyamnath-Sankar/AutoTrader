@@ -159,8 +159,7 @@ NY_CLOSE = 21
 # SCHEDULING
 # ═══════════════════════════════════════════════════════════════════════════════
 
-DEFAULT_SCAN_INTERVAL_MINUTES = 15   # fallback scan interval when no AI schedule
-MAX_SCHEDULE_MINUTES = 240           # max time AI can schedule ahead (4 hours)
+DEFAULT_SCAN_INTERVAL_MINUTES = 15   # fallback scan interval
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # MODE

@@ -2,14 +2,12 @@
 trader_brain.py — AI Agent 1: The Trader Brain.
 
 Uses OpenAI-compatible API to analyze market data and produce
-a scored trading decision (TAKE / LEAVE / SCHEDULE).
+a scored trading decision (TAKE / LEAVE).
 
 Architecture (per diagram):
   - Reads ALL data, scores EVERYTHING, uses judgment not rules
   - Outputs: decision + scores + direction + pair + reasoning
   - Does NOT output SL/TP — Risk Engine computes those from swing structure
-  - SCHEDULE: AI sets exact wakeup time with reason (reads what's MISSING
-    and how fast it is MOVING toward target)
 
 The prompt is built DYNAMICALLY from settings.py — change the max scores,
 sub-score allocations, or minimum thresholds there and the prompt adapts.
@@ -189,18 +187,8 @@ TAKE: Phase 1 ≥ {settings.PHASE1_MIN_REQUIRED}, Phase 2 ≥ {settings.PHASE2_M
   → You MUST provide: pair, direction (BUY/SELL)
   → The Risk Engine will compute SL/TP from swing structure — you do NOT set SL/TP
 
-SCHEDULE: Setup is building but not ready yet — something is CLOSE to triggering
-  → You MUST provide: schedule_minutes (exact time to wake up), schedule_reason (what you're waiting for)
-  → Be SPECIFIC and QUANTITATIVE about what you're waiting for:
-     Examples:
-       "RSI at 57, dropping 2pts/candle, need <50 → schedule 9min"
-       "Liquidity pool at 1.0820 unswept, price 6 pips away, dropping → schedule 12min"
-       "ADX at 19, rising, need 20 → 4H closes in 45min → schedule 46min"
-       "Setup fully cold, 4H not aligned → schedule at next London open kill zone 07:00 UTC"
-  → Think about HOW FAST the market is moving toward your trigger point
-
-LEAVE: No viable setup, market is unfavorable, nothing building
-  → Explain why; the bot will reschedule at default {settings.DEFAULT_SCAN_INTERVAL_MINUTES}min interval
+LEAVE: Setup does not meet ALL thresholds, or market is unfavorable
+  → Explain why; the bot will rescan at the default {settings.DEFAULT_SCAN_INTERVAL_MINUTES}min interval
 
 ═══ RISK CONTEXT ═══
 
@@ -221,7 +209,7 @@ Only signal TAKE when the swing structure offers a tight enough SL.
 
 You MUST evaluate EACH pair independently. Do not anchor on one pair.
 If multiple pairs show setups, pick the highest conviction one.
-If no pair has a viable setup, say LEAVE or SCHEDULE.
+If no pair has a viable setup, say LEAVE.
 
 {prev_context}
 ═══ RESPONSE FORMAT ═══
@@ -229,7 +217,7 @@ If no pair has a viable setup, say LEAVE or SCHEDULE.
 You MUST respond with ONLY valid JSON, no other text. Use this exact structure:
 
 {{
-  "decision": "TAKE" | "SCHEDULE" | "LEAVE",
+  "decision": "TAKE" | "LEAVE",
   "pair": "EURUSD" | "GBPUSD" | null,
   "direction": "BUY" | "SELL" | null,
   "phase1_scores": {{
@@ -249,9 +237,7 @@ You MUST respond with ONLY valid JSON, no other text. Use this exact structure:
   }},
   "phase2_total": <sum>,
   "total_score": <phase1_total + phase2_total>,
-  "reasoning": "<your detailed analysis — why each score, what you see in the data>",
-  "schedule_minutes": <integer or null>,
-  "schedule_reason": "<what you're waiting for and how fast it's moving there, if SCHEDULE>"
+  "reasoning": "<your detailed analysis — why each score, what you see in the data>"
 }}"""
 
     return prompt
@@ -287,7 +273,7 @@ def analyze(
     user_message = f"""Analyze the following market data and score the setup.
 Evaluate ALL pairs ({', '.join(settings.PAIRS)}) independently and pick the best setup if any.
 If multiple pairs look good, choose the highest-conviction one.
-If no pair qualifies, decide SCHEDULE (if something is building) or LEAVE (if nothing viable).
+If no pair qualifies, decide LEAVE.
 
 {market_context}"""
 
@@ -347,8 +333,6 @@ If no pair qualifies, decide SCHEDULE (if something is building) or LEAVE (if no
             phase2_total=data.get("phase2_total", 0),
             total_score=data.get("total_score", 0),
             reasoning=data.get("reasoning", ""),
-            schedule_minutes=data.get("schedule_minutes"),
-            schedule_reason=data.get("schedule_reason"),
         )
 
         # Validate and enforce score caps
@@ -429,8 +413,8 @@ def _validate_decision(decision: TraderDecision) -> TraderDecision:
     Validate the AI's decision against our minimum thresholds.
     The AI might say TAKE but if scores don't meet minimums, we override.
     """
-    # Normalize legacy decision names → new names
-    legacy_map = {"EXECUTE": "TAKE", "SKIP": "LEAVE", "WATCH": "SCHEDULE"}
+    # Normalize legacy decision names → TAKE or LEAVE only
+    legacy_map = {"EXECUTE": "TAKE", "SKIP": "LEAVE", "WATCH": "LEAVE", "SCHEDULE": "LEAVE"}
     decision.decision = legacy_map.get(decision.decision, decision.decision)
 
     if decision.decision == "TAKE":
@@ -438,34 +422,26 @@ def _validate_decision(decision: TraderDecision) -> TraderDecision:
         if decision.phase1_total < settings.PHASE1_MIN_REQUIRED:
             logger.warning(
                 f"AI said TAKE but Phase 1 ({decision.phase1_total}) "
-                f"< minimum ({settings.PHASE1_MIN_REQUIRED}) — overriding to SCHEDULE"
+                f"< minimum ({settings.PHASE1_MIN_REQUIRED}) — overriding to LEAVE"
             )
-            decision.decision = "SCHEDULE"
+            decision.decision = "LEAVE"
             decision.reasoning += (
                 f"\n[OVERRIDE] Phase 1 score {decision.phase1_total} below "
-                f"minimum {settings.PHASE1_MIN_REQUIRED}. Changed TAKE → SCHEDULE."
+                f"minimum {settings.PHASE1_MIN_REQUIRED}. Changed TAKE → LEAVE."
             )
-            if not decision.schedule_minutes:
-                decision.schedule_minutes = settings.DEFAULT_SCAN_INTERVAL_MINUTES
-            if not decision.schedule_reason:
-                decision.schedule_reason = "Phase 1 below threshold — waiting for improvement"
             return decision
 
         # Check Phase 2 minimum
         if decision.phase2_total < settings.PHASE2_MIN_REQUIRED:
             logger.warning(
                 f"AI said TAKE but Phase 2 ({decision.phase2_total}) "
-                f"< minimum ({settings.PHASE2_MIN_REQUIRED}) — overriding to SCHEDULE"
+                f"< minimum ({settings.PHASE2_MIN_REQUIRED}) — overriding to LEAVE"
             )
-            decision.decision = "SCHEDULE"
+            decision.decision = "LEAVE"
             decision.reasoning += (
                 f"\n[OVERRIDE] Phase 2 score {decision.phase2_total} below "
-                f"minimum {settings.PHASE2_MIN_REQUIRED}. Changed TAKE → SCHEDULE."
+                f"minimum {settings.PHASE2_MIN_REQUIRED}. Changed TAKE → LEAVE."
             )
-            if not decision.schedule_minutes:
-                decision.schedule_minutes = settings.DEFAULT_SCAN_INTERVAL_MINUTES
-            if not decision.schedule_reason:
-                decision.schedule_reason = "Phase 2 (SMC) below threshold — waiting for confirmation"
             return decision
 
         # Check total minimum (percentage-based)
@@ -476,17 +452,13 @@ def _validate_decision(decision: TraderDecision) -> TraderDecision:
             min_pct_display = int(settings.TOTAL_MIN_SCORE_PCT * 100)
             logger.warning(
                 f"AI said TAKE but total ({decision.total_score}/{settings.get_total_max_score()} = {pct_display}%) "
-                f"< minimum ({total_min_required} = {min_pct_display}%) — overriding to SCHEDULE"
+                f"< minimum ({total_min_required} = {min_pct_display}%) — overriding to LEAVE"
             )
-            decision.decision = "SCHEDULE"
+            decision.decision = "LEAVE"
             decision.reasoning += (
                 f"\n[OVERRIDE] Total score {decision.total_score} ({pct_display}%) below "
-                f"minimum {total_min_required} ({min_pct_display}%). Changed TAKE → SCHEDULE."
+                f"minimum {total_min_required} ({min_pct_display}%). Changed TAKE → LEAVE."
             )
-            if not decision.schedule_minutes:
-                decision.schedule_minutes = settings.DEFAULT_SCAN_INTERVAL_MINUTES
-            if not decision.schedule_reason:
-                decision.schedule_reason = "Total score below percentage threshold — waiting for conditions to improve"
             return decision
 
         # Check required fields for TAKE
@@ -495,18 +467,6 @@ def _validate_decision(decision: TraderDecision) -> TraderDecision:
             decision.decision = "LEAVE"
             decision.reasoning += "\n[OVERRIDE] Missing pair or direction for TAKE."
             return decision
-
-    elif decision.decision == "SCHEDULE":
-        # Ensure we have schedule time
-        if not decision.schedule_minutes or decision.schedule_minutes <= 0:
-            decision.schedule_minutes = settings.DEFAULT_SCAN_INTERVAL_MINUTES
-
-        # Cap max schedule time
-        if decision.schedule_minutes > settings.MAX_SCHEDULE_MINUTES:
-            decision.schedule_minutes = settings.MAX_SCHEDULE_MINUTES
-
-        if not decision.schedule_reason:
-            decision.schedule_reason = "AI scheduled without explicit reason"
 
     return decision
 
@@ -517,7 +477,7 @@ def _validate_decision(decision: TraderDecision) -> TraderDecision:
 
 def _log_decision(decision: TraderDecision):
     """Log the AI decision with colored output."""
-    emoji = {"TAKE": "🟢", "SCHEDULE": "🟡", "LEAVE": "🔴"}.get(decision.decision, "⚪")
+    emoji = {"TAKE": "🟢", "LEAVE": "🔴"}.get(decision.decision, "⚪")
 
     logger.info(f"\n{'─' * 60}")
     logger.info(f"{emoji} AI DECISION: {decision.decision}")
@@ -543,11 +503,6 @@ def _log_decision(decision: TraderDecision):
     logger.info(f"   Total: {decision.total_score}/{total_max} "
                 f"({score_pct * 100:.0f}%) "
                 f"(min {total_min_required} = {int(settings.TOTAL_MIN_SCORE_PCT * 100)}%)")
-
-    if decision.schedule_minutes:
-        logger.info(f"   ⏰ Schedule in: {decision.schedule_minutes} min")
-        if decision.schedule_reason:
-            logger.info(f"   Reason: {decision.schedule_reason}")
 
     logger.info(f"   Reasoning: {decision.reasoning[:300]}...")
     logger.info(f"{'─' * 60}")

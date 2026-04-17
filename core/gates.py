@@ -295,12 +295,12 @@ def run_all_gates(pairs: list[str] | None = None) -> tuple[bool, list[GateResult
         logger.info(f"🚫 ADX gate FAILED: {adx.reason}")
         return False, results
 
-    # Gate 3: News
-    news = check_news_gate(pairs)
-    results.append(news)
-    if not news.passed:
-        logger.info(f"🚫 News gate FAILED: {news.reason}")
-        return False, results
+    # Gate 3: News — DISABLED (can re-enable by uncommenting)
+    # news = check_news_gate(pairs)
+    # results.append(news)
+    # if not news.passed:
+    #     logger.info(f"🚫 News gate FAILED: {news.reason}")
+    #     return False, results
 
-    logger.info("✅ All gates passed")
+    logger.info("✅ All gates passed (news gate disabled)")
     return True, results

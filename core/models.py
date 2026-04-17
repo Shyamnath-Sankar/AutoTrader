@@ -3,7 +3,7 @@ models.py — Pydantic data models for the Smart Money Trading Bot.
 Every structured data object the bot uses is defined here.
 
 Architecture decisions:
-  - TraderDecision uses TAKE / LEAVE / SCHEDULE (per architecture diagram)
+  - TraderDecision uses TAKE / LEAVE (two-decision system)
   - Trader Brain provides scores + direction + pair; NO SL/TP (Risk Engine computes those)
   - Risk Engine computes SL from swing structure, TP from R:R, lot size from budget
 """
@@ -123,8 +123,7 @@ class MarketDataPayload(BaseModel):
 #
 # Decision types (per architecture diagram):
 #   TAKE     → high-confidence setup, proceed to Risk Engine
-#   LEAVE    → no viable setup, log and done
-#   SCHEDULE → setup building, AI sets exact wakeup time with reason
+#   LEAVE    → no viable setup, log and rescan at default interval
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class Phase1Scores(BaseModel):
@@ -152,7 +151,7 @@ class TraderDecision(BaseModel):
     The Trader Brain outputs ONLY scores, direction, pair, and reasoning.
     SL/TP/lots are computed by the Risk Engine from swing structure.
     """
-    decision: str                    # "TAKE", "LEAVE", "SCHEDULE"
+    decision: str                    # "TAKE" or "LEAVE"
     pair: Optional[str] = None
     direction: Optional[str] = None  # "BUY", "SELL", or None
     phase1_scores: Phase1Scores = Field(default_factory=Phase1Scores)
@@ -161,9 +160,6 @@ class TraderDecision(BaseModel):
     phase2_total: int = 0
     total_score: int = 0
     reasoning: str = ""
-    # SCHEDULE fields — AI sets exact wakeup time
-    schedule_minutes: Optional[int] = None
-    schedule_reason: Optional[str] = None
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -236,7 +232,7 @@ class TradeRecord(BaseModel):
     timestamp: str
     pair: str
     direction: str
-    decision: str                  # TAKE, LEAVE, SCHEDULE
+    decision: str                  # TAKE or LEAVE
     phase1_scores: dict = {}
     phase1_total: int = 0
     phase2_scores: dict = {}

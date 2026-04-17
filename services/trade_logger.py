@@ -2,7 +2,7 @@
 trade_logger.py — Logs all trade decisions and results to data/trades.json.
 
 Provides:
-  - log_decision(): log any AI decision (TAKE, SCHEDULE, LEAVE)
+  - log_decision(): log any AI decision (TAKE, LEAVE)
   - log_execution(): log trade execution result from MT5
   - get_today_trades(): get today's trade history for AI context
   - get_today_stats(): get today's trade count + P&L + attempt count
@@ -54,7 +54,7 @@ class TradeLogger:
         self._write_all(records)
 
     # ═══════════════════════════════════════════════════════════════════════
-    # LOG A DECISION (any decision — TAKE, SCHEDULE, LEAVE)
+    # LOG A DECISION (any decision — TAKE, LEAVE)
     # ═══════════════════════════════════════════════════════════════════════
 
     def log_decision(

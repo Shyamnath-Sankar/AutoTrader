@@ -589,3 +589,578 @@
 2026-04-16 16:24:40 | INFO     | 📝 Trade logged: EXECUTE EURUSD (score: 63)
 2026-04-16 16:24:40 | INFO     | ⏰ Scheduled analysis in 15 min (at 11:09:40 UTC)
 2026-04-16 16:24:40 | INFO     |    Reason: Default scan interval
+2026-04-17 15:31:27 | INFO     | 🚀 Starting Smart Money Trading Bot v2.0...
+2026-04-17 15:31:27 | ERROR    | ❌ LLM_API_KEY not set! Set it in .env or settings.py
+2026-04-17 15:31:31 | INFO     | ✅ MT5 connected — Balance: $3000.00 | Leverage: 1:2000
+2026-04-17 15:31:31 | INFO     |    Risk budget: $150.00/trade (5.0%) | Max SL: 100 pips at 0.01 lot
+2026-04-17 15:31:31 | INFO     | ✅ Phase 1 scoring: 60 pts across 6 components
+2026-04-17 15:31:31 | INFO     | ✅ Phase 2 scoring: 20 pts across 4 components
+2026-04-17 15:31:31 | ERROR    | Prerequisites not met — fix the issues above and restart
+2026-04-17 15:33:09 | INFO     | 🚀 Starting Smart Money Trading Bot v2.0...
+2026-04-17 15:33:09 | INFO     | ✅ LLM API key configured (model: gpt-4o)
+2026-04-17 15:33:13 | INFO     | ✅ MT5 connected — Balance: $3000.00 | Leverage: 1:2000
+2026-04-17 15:33:13 | INFO     |    Risk budget: $150.00/trade (5.0%) | Max SL: 100 pips at 0.01 lot
+2026-04-17 15:33:13 | INFO     | ✅ Phase 1 scoring: 60 pts across 6 components
+2026-04-17 15:33:13 | INFO     | ✅ Phase 2 scoring: 20 pts across 4 components
+2026-04-17 15:33:13 | INFO     | ⏰ Scheduler started (UTC timezone)
+2026-04-17 15:33:13 | INFO     | 
+🔄 Running initial analysis cycle...
+2026-04-17 15:33:13 | INFO     | 
+════════════════════════════════════════════════════════════
+2026-04-17 15:33:13 | INFO     | 🔄 ANALYSIS CYCLE START — 2026-04-17 10:03:13 UTC
+2026-04-17 15:33:13 | INFO     |    Mode: demo | Pairs: EURUSD, GBPUSD
+2026-04-17 15:33:13 | INFO     | ════════════════════════════════════════════════════════════
+2026-04-17 15:33:13 | INFO     | 
+📋 Step 1: Running hard gates...
+2026-04-17 15:33:14 | INFO     |   ✅ EURUSD ADX 4H = 35.6 ≥ 20 (trending)
+2026-04-17 15:33:15 | INFO     |   ✅ GBPUSD ADX 4H = 33.3 ≥ 20 (trending)
+2026-04-17 15:33:15 | INFO     | ✅ All gates passed
+2026-04-17 15:33:15 | INFO     | 
+📊 Step 2: Collecting market data...
+2026-04-17 15:33:19 | INFO     | 📊 Collecting data for EURUSD...
+2026-04-17 15:33:22 | INFO     | 📊 Collecting data for GBPUSD...
+2026-04-17 15:33:24 | INFO     | ✅ Data collection complete for 2 pairs
+2026-04-17 15:33:24 | INFO     | 📈 Today's stats: 0 trades executed, 0 TAKE attempts, 0 rejections, P&L: $0.00
+2026-04-17 15:33:24 | INFO     | 
+🧠 Step 3: AI Trader Brain analyzing...
+2026-04-17 15:33:24 | INFO     | 🧠 Sending data to AI Trader Brain...
+2026-04-17 15:33:26 | ERROR    | AI Trader Brain error: Error code: 404 - {'error': {'type': 'invalid_request_error', 'code': 'DeploymentNotFound', 'message': 'The API deployment for this resource does not exist. If you created the deployment within the last 5 minutes, please wait a moment and try again.'}}
+2026-04-17 15:33:26 | INFO     | 🔴 Decision: LEAVE — no viable setup
+2026-04-17 15:33:26 | INFO     | 📝 Trade logged: LEAVE  (score: 0)
+2026-04-17 15:33:26 | INFO     | ⏰ Next analysis in 15 min (at 10:18:26 UTC)
+2026-04-17 15:33:26 | INFO     |    Reason: Default scan interval
+2026-04-17 15:33:26 | INFO     | 
+⏳ Bot is running. Press Ctrl+C to stop.
+2026-04-17 15:33:45 | INFO     | 
+🛑 Shutdown requested — finishing current cycle...
+2026-04-17 15:33:45 | INFO     | 🛑 Shutting down bot...
+2026-04-17 15:33:45 | INFO     | ⏰ Scheduler stopped
+2026-04-17 15:33:45 | INFO     | 👋 Smart Money Trading Bot stopped. Goodbye!
+2026-04-17 15:34:01 | INFO     | 🚀 Starting Smart Money Trading Bot v2.0...
+2026-04-17 15:34:01 | INFO     | ✅ LLM API key configured (model: gpt-4o-mini)
+2026-04-17 15:34:05 | INFO     | ✅ MT5 connected — Balance: $3000.00 | Leverage: 1:2000
+2026-04-17 15:34:05 | INFO     |    Risk budget: $150.00/trade (5.0%) | Max SL: 100 pips at 0.01 lot
+2026-04-17 15:34:05 | INFO     | ✅ Phase 1 scoring: 60 pts across 6 components
+2026-04-17 15:34:05 | INFO     | ✅ Phase 2 scoring: 20 pts across 4 components
+2026-04-17 15:34:05 | INFO     | ⏰ Scheduler started (UTC timezone)
+2026-04-17 15:34:05 | INFO     | 
+🔄 Running initial analysis cycle...
+2026-04-17 15:34:05 | INFO     | 
+════════════════════════════════════════════════════════════
+2026-04-17 15:34:05 | INFO     | 🔄 ANALYSIS CYCLE START — 2026-04-17 10:04:05 UTC
+2026-04-17 15:34:05 | INFO     |    Mode: demo | Pairs: EURUSD, GBPUSD
+2026-04-17 15:34:05 | INFO     | ════════════════════════════════════════════════════════════
+2026-04-17 15:34:05 | INFO     | 
+📋 Step 1: Running hard gates...
+2026-04-17 15:34:06 | INFO     |   ✅ EURUSD ADX 4H = 35.6 ≥ 20 (trending)
+2026-04-17 15:34:06 | INFO     |   ✅ GBPUSD ADX 4H = 33.3 ≥ 20 (trending)
+2026-04-17 15:34:06 | WARNING  | News calendar fetch failed: 429 Client Error: Too Many Requests for url: https://nfs.faireconomy.media/ff_calendar_thisweek.json
+2026-04-17 15:34:06 | INFO     | 🚫 News gate FAILED: News calendar unavailable — blocking (fail-closed). Retry in 5min.
+2026-04-17 15:34:06 | INFO     | ⏳ Scheduling retry in 5 min
+2026-04-17 15:34:06 | INFO     | ⏰ Next analysis in 5 min (at 10:09:06 UTC)
+2026-04-17 15:34:06 | INFO     |    Reason: Gate retry: News calendar unavailable — blocking (fail-closed). Retry in 5min.
+2026-04-17 15:34:06 | INFO     | 
+⏳ Bot is running. Press Ctrl+C to stop.
+2026-04-17 15:39:06 | INFO     | 
+════════════════════════════════════════════════════════════
+2026-04-17 15:39:06 | INFO     | 🔄 ANALYSIS CYCLE START — 2026-04-17 10:09:06 UTC
+2026-04-17 15:39:06 | INFO     |    Mode: demo | Pairs: EURUSD, GBPUSD
+2026-04-17 15:39:06 | INFO     | ════════════════════════════════════════════════════════════
+2026-04-17 15:39:06 | INFO     | 
+📋 Step 1: Running hard gates...
+2026-04-17 15:39:07 | INFO     |   ✅ EURUSD ADX 4H = 35.6 ≥ 20 (trending)
+2026-04-17 15:39:07 | INFO     |   ✅ GBPUSD ADX 4H = 33.3 ≥ 20 (trending)
+2026-04-17 15:39:07 | INFO     | ✅ All gates passed
+2026-04-17 15:39:07 | INFO     | 
+📊 Step 2: Collecting market data...
+2026-04-17 15:39:11 | INFO     | 📊 Collecting data for EURUSD...
+2026-04-17 15:39:14 | INFO     | 📊 Collecting data for GBPUSD...
+2026-04-17 15:39:16 | INFO     | ✅ Data collection complete for 2 pairs
+2026-04-17 15:39:16 | INFO     | 📈 Today's stats: 0 trades executed, 0 TAKE attempts, 0 rejections, P&L: $0.00
+2026-04-17 15:39:16 | INFO     | 
+🧠 Step 3: AI Trader Brain analyzing...
+2026-04-17 15:39:16 | INFO     | 🧠 Sending data to AI Trader Brain...
+2026-04-17 15:39:22 | DEBUG    | AI raw response: ```json
+{
+  "decision": "SCHEDULE",
+  "pair": "EURUSD",
+  "direction": "BUY",
+  "phase1_scores": {
+    "regime": 5,
+    "session": 6,
+    "news": 8,
+    "weekly_4h_bias": 12,
+    "trend_1h": 5,
+    "trigger_15m": 4
+  },
+  "phase1_total": 40,
+  "phase2_scores": {
+    "liquidity_sweep": 4,
+    "order_block": 4,
+    "fvg": 3,
+    "bos_choch": 2
+  },
+  "phase2_total": 13,
+  "total_score": 53,
+  "reasoning": "For EURUSD, the ADX indicates a weak trend (5 points), but the session is currently in the L...
+2026-04-17 15:39:22 | INFO     | 
+────────────────────────────────────────────────────────────
+2026-04-17 15:39:22 | INFO     | 🟡 AI DECISION: SCHEDULE
+2026-04-17 15:39:22 | INFO     |    Pair: EURUSD | Direction: BUY
+2026-04-17 15:39:22 | INFO     |    Phase 1: 40/60 (min 35)
+2026-04-17 15:39:22 | INFO     |      Regime: 5/10 | Session: 6/8 | News: 8/8
+2026-04-17 15:39:22 | INFO     |      Bias: 12/14 | Trend: 5/12 | Trigger: 4/8
+2026-04-17 15:39:22 | INFO     |    Phase 2: 13/20 (min 12)
+2026-04-17 15:39:22 | INFO     |      Liquidity: 4/8 | OB: 4/5 | FVG: 3/4 | BOS: 2/3
+2026-04-17 15:39:22 | INFO     |    Total: 53/80 (min 60)
+2026-04-17 15:39:22 | INFO     |    ⏰ Schedule in: 5 min
+2026-04-17 15:39:22 | INFO     |    Reason: Waiting for price to reach the nearest bullish FVG at 1.1790368557, currently 3 pips away.
+2026-04-17 15:39:22 | INFO     |    Reasoning: For EURUSD, the ADX indicates a weak trend (5 points), but the session is currently in the London session (6 points). There is no high-impact news within the next two hours (8 points). The weekly and 4H EMAs are aligned with price above them (12 points). The 1H trend is mixed with some divergence (5...
+2026-04-17 15:39:22 | INFO     | ────────────────────────────────────────────────────────────
+2026-04-17 15:39:22 | INFO     | 🟡 Decision: SCHEDULE — waking up in 5 min
+2026-04-17 15:39:22 | INFO     |    Reason: Waiting for price to reach the nearest bullish FVG at 1.1790368557, currently 3 pips away.
+2026-04-17 15:39:22 | INFO     | 📝 Trade logged: SCHEDULE EURUSD (score: 53)
+2026-04-17 15:39:22 | INFO     | ⏰ Next analysis in 5 min (at 10:14:22 UTC)
+2026-04-17 15:39:22 | INFO     |    Reason: Waiting for price to reach the nearest bullish FVG at 1.1790368557, currently 3 pips away.
+2026-04-17 15:44:22 | INFO     | 
+════════════════════════════════════════════════════════════
+2026-04-17 15:44:22 | INFO     | 🔄 ANALYSIS CYCLE START — 2026-04-17 10:14:22 UTC
+2026-04-17 15:44:22 | INFO     |    Mode: demo | Pairs: EURUSD, GBPUSD
+2026-04-17 15:44:22 | INFO     | ════════════════════════════════════════════════════════════
+2026-04-17 15:44:22 | INFO     | 
+📋 Step 1: Running hard gates...
+2026-04-17 15:44:22 | INFO     |   ✅ EURUSD ADX 4H = 35.6 ≥ 20 (trending)
+2026-04-17 15:44:23 | INFO     |   ✅ GBPUSD ADX 4H = 33.3 ≥ 20 (trending)
+2026-04-17 15:44:23 | INFO     | ✅ All gates passed
+2026-04-17 15:44:23 | INFO     | 
+📊 Step 2: Collecting market data...
+2026-04-17 15:44:27 | INFO     | 📊 Collecting data for EURUSD...
+2026-04-17 15:44:29 | INFO     | 📊 Collecting data for GBPUSD...
+2026-04-17 15:44:31 | INFO     | ✅ Data collection complete for 2 pairs
+2026-04-17 15:44:31 | INFO     | 📈 Today's stats: 0 trades executed, 0 TAKE attempts, 0 rejections, P&L: $0.00
+2026-04-17 15:44:31 | INFO     | 
+🧠 Step 3: AI Trader Brain analyzing...
+2026-04-17 15:44:31 | INFO     | 🧠 Sending data to AI Trader Brain...
+2026-04-17 15:44:38 | DEBUG    | AI raw response: {
+  "decision": "SCHEDULE",
+  "pair": "EURUSD",
+  "direction": "BUY",
+  "phase1_scores": {
+    "regime": 5,
+    "session": 6,
+    "news": 8,
+    "weekly_4h_bias": 12,
+    "trend_1h": 5,
+    "trigger_15m": 4
+  },
+  "phase1_total": 40,
+  "phase2_scores": {
+    "liquidity_sweep": 4,
+    "order_block": 4,
+    "fvg": 3,
+    "bos_choch": 2
+  },
+  "phase2_total": 13,
+  "total_score": 53,
+  "reasoning": "For EURUSD, the market is in a weak trend with an ADX of 15, indicating a lack of strong directional...
+2026-04-17 15:44:38 | INFO     | 
+────────────────────────────────────────────────────────────
+2026-04-17 15:44:38 | INFO     | 🟡 AI DECISION: SCHEDULE
+2026-04-17 15:44:38 | INFO     |    Pair: EURUSD | Direction: BUY
+2026-04-17 15:44:38 | INFO     |    Phase 1: 40/60 (min 35)
+2026-04-17 15:44:38 | INFO     |      Regime: 5/10 | Session: 6/8 | News: 8/8
+2026-04-17 15:44:38 | INFO     |      Bias: 12/14 | Trend: 5/12 | Trigger: 4/8
+2026-04-17 15:44:38 | INFO     |    Phase 2: 13/20 (min 12)
+2026-04-17 15:44:38 | INFO     |      Liquidity: 4/8 | OB: 4/5 | FVG: 3/4 | BOS: 2/3
+2026-04-17 15:44:38 | INFO     |    Total: 53/80 (min 60)
+2026-04-17 15:44:38 | INFO     |    ⏰ Schedule in: 5 min
+2026-04-17 15:44:38 | INFO     |    Reason: Price is currently 3 pips away from the nearest bullish FVG at 1.1790368557, and the market is moving slowly toward it.
+2026-04-17 15:44:38 | INFO     |    Reasoning: For EURUSD, the market is in a weak trend with an ADX of 15, indicating a lack of strong directional movement, hence a score of 5 for regime. The current session is during the London session, which is favorable, scoring 6. There are no high-impact news events within the next 2 hours, so it scores 8....
+2026-04-17 15:44:38 | INFO     | ────────────────────────────────────────────────────────────
+2026-04-17 15:44:38 | INFO     | 🟡 Decision: SCHEDULE — waking up in 5 min
+2026-04-17 15:44:38 | INFO     |    Reason: Price is currently 3 pips away from the nearest bullish FVG at 1.1790368557, and the market is moving slowly toward it.
+2026-04-17 15:44:38 | INFO     | 📝 Trade logged: SCHEDULE EURUSD (score: 53)
+2026-04-17 15:44:38 | INFO     | ⏰ Next analysis in 5 min (at 10:19:38 UTC)
+2026-04-17 15:44:38 | INFO     |    Reason: Price is currently 3 pips away from the nearest bullish FVG at 1.1790368557, and the market is moving slowly toward it.
+2026-04-17 15:46:03 | INFO     | 
+🛑 Shutdown requested — finishing current cycle...
+2026-04-17 15:46:04 | INFO     | 🛑 Shutting down bot...
+2026-04-17 15:46:04 | INFO     | ⏰ Scheduler stopped
+2026-04-17 15:46:04 | INFO     | 👋 Smart Money Trading Bot stopped. Goodbye!
+2026-04-17 16:03:03 | INFO     | 🚀 Starting Smart Money Trading Bot v2.0...
+2026-04-17 16:03:03 | INFO     | ✅ LLM API key configured (model: gpt-4o-mini)
+2026-04-17 16:03:07 | INFO     | ✅ MT5 connected — Balance: $3000.00 | Leverage: 1:2000
+2026-04-17 16:03:07 | INFO     |    Risk budget: $150.00/trade (5.0%) | Max SL: 100 pips at 0.01 lot
+2026-04-17 16:03:07 | INFO     | ✅ Phase 1 scoring: 60 pts across 6 components
+2026-04-17 16:03:07 | INFO     | ✅ Phase 2 scoring: 20 pts across 4 components
+2026-04-17 16:03:07 | INFO     | ⏰ Scheduler started (UTC timezone)
+2026-04-17 16:03:07 | INFO     | 
+🔄 Running initial analysis cycle...
+2026-04-17 16:03:07 | INFO     | 
+════════════════════════════════════════════════════════════
+2026-04-17 16:03:07 | INFO     | 🔄 ANALYSIS CYCLE START — 2026-04-17 10:33:07 UTC
+2026-04-17 16:03:07 | INFO     |    Mode: demo | Pairs: EURUSD, GBPUSD
+2026-04-17 16:03:07 | INFO     | ════════════════════════════════════════════════════════════
+2026-04-17 16:03:07 | INFO     | 
+📋 Step 1: Running hard gates...
+2026-04-17 16:03:07 | INFO     |   ✅ EURUSD ADX 4H = 35.6 ≥ 20 (trending)
+2026-04-17 16:03:07 | INFO     |   ✅ GBPUSD ADX 4H = 33.3 ≥ 20 (trending)
+2026-04-17 16:03:07 | INFO     | ✅ All gates passed
+2026-04-17 16:03:07 | INFO     | 
+📊 Step 2: Collecting market data...
+2026-04-17 16:03:12 | INFO     | 📊 Collecting data for EURUSD...
+2026-04-17 16:03:14 | INFO     | 📊 Collecting data for GBPUSD...
+2026-04-17 16:03:15 | INFO     | ✅ Data collection complete for 2 pairs
+2026-04-17 16:03:15 | INFO     | 📈 Today's stats: 0 trades executed, 0 TAKE attempts, 0 rejections, P&L: $0.00
+2026-04-17 16:03:15 | INFO     | 
+🧠 Step 3: AI Trader Brain analyzing...
+2026-04-17 16:03:15 | INFO     | 🧠 Sending data to AI Trader Brain...
+2026-04-17 16:03:20 | DEBUG    | AI raw response: ```json
+{
+  "decision": "SCHEDULE",
+  "pair": "EURUSD",
+  "direction": "BUY",
+  "phase1_scores": {
+    "regime": 4,
+    "session": 6,
+    "news": 7,
+    "weekly_4h_bias": 12,
+    "trend_1h": 5,
+    "trigger_15m": 4
+  },
+  "phase1_total": 38,
+  "phase2_scores": {
+    "liquidity_sweep": 4,
+    "order_block": 5,
+    "fvg": 3,
+    "bos_choch": 2
+  },
+  "phase2_total": 14,
+  "total_score": 52,
+  "reasoning": "For EURUSD, the market is showing a weak trend with an ADX of 15, indicating a potential tra...
+2026-04-17 16:03:20 | INFO     | 
+────────────────────────────────────────────────────────────
+2026-04-17 16:03:20 | INFO     | 🟡 AI DECISION: SCHEDULE
+2026-04-17 16:03:20 | INFO     |    Pair: EURUSD | Direction: BUY
+2026-04-17 16:03:20 | INFO     |    Phase 1: 38/60 (min 32)
+2026-04-17 16:03:20 | INFO     |      Regime: 4/10 | Session: 6/8 | News: 7/8
+2026-04-17 16:03:20 | INFO     |      Bias: 12/14 | Trend: 5/12 | Trigger: 4/8
+2026-04-17 16:03:20 | INFO     |    Phase 2: 14/20 (min 10)
+2026-04-17 16:03:20 | INFO     |      Liquidity: 4/8 | OB: 5/5 | FVG: 3/4 | BOS: 2/3
+2026-04-17 16:03:20 | INFO     |    Total: 52/80 (65%) (min 48 = 60%)
+2026-04-17 16:03:20 | INFO     |    ⏰ Schedule in: 15 min
+2026-04-17 16:03:20 | INFO     |    Reason: Waiting for a clearer bullish signal on the 15M chart, specifically a confirmed trigger candle to enter the trade.
+2026-04-17 16:03:20 | INFO     |    Reasoning: For EURUSD, the market is showing a weak trend with an ADX of 15, indicating a potential transition phase. The session quality is good as it falls within the London session. There is no high-impact news within the next two hours, which is favorable. The weekly and 4H EMAs are aligned, supporting a b...
+2026-04-17 16:03:20 | INFO     | ────────────────────────────────────────────────────────────
+2026-04-17 16:03:20 | INFO     | 🟡 Decision: SCHEDULE — waking up in 15 min
+2026-04-17 16:03:20 | INFO     |    Reason: Waiting for a clearer bullish signal on the 15M chart, specifically a confirmed trigger candle to enter the trade.
+2026-04-17 16:03:20 | INFO     | 📝 Trade logged: SCHEDULE EURUSD (score: 52)
+2026-04-17 16:03:20 | INFO     | ⏰ Next analysis in 15 min (at 10:48:20 UTC)
+2026-04-17 16:03:20 | INFO     |    Reason: Waiting for a clearer bullish signal on the 15M chart, specifically a confirmed trigger candle to enter the trade.
+2026-04-17 16:03:20 | INFO     | 
+⏳ Bot is running. Press Ctrl+C to stop.
+2026-04-17 16:18:20 | INFO     | 
+════════════════════════════════════════════════════════════
+2026-04-17 16:18:20 | INFO     | 🔄 ANALYSIS CYCLE START — 2026-04-17 10:48:20 UTC
+2026-04-17 16:18:20 | INFO     |    Mode: demo | Pairs: EURUSD, GBPUSD
+2026-04-17 16:18:20 | INFO     | ════════════════════════════════════════════════════════════
+2026-04-17 16:18:20 | INFO     | 
+📋 Step 1: Running hard gates...
+2026-04-17 16:18:21 | INFO     |   ✅ EURUSD ADX 4H = 35.6 ≥ 20 (trending)
+2026-04-17 16:18:21 | INFO     |   ✅ GBPUSD ADX 4H = 33.3 ≥ 20 (trending)
+2026-04-17 16:18:21 | INFO     | ✅ All gates passed
+2026-04-17 16:18:21 | INFO     | 
+📊 Step 2: Collecting market data...
+2026-04-17 16:18:25 | INFO     | 📊 Collecting data for EURUSD...
+2026-04-17 16:18:28 | INFO     | 📊 Collecting data for GBPUSD...
+2026-04-17 16:18:31 | INFO     | ✅ Data collection complete for 2 pairs
+2026-04-17 16:18:31 | INFO     | 📈 Today's stats: 0 trades executed, 0 TAKE attempts, 0 rejections, P&L: $0.00
+2026-04-17 16:18:31 | INFO     | 
+🧠 Step 3: AI Trader Brain analyzing...
+2026-04-17 16:18:31 | INFO     | 🧠 Sending data to AI Trader Brain...
+2026-04-17 16:18:36 | DEBUG    | AI raw response: ```json
+{
+  "decision": "SCHEDULE",
+  "pair": "EURUSD",
+  "direction": "BUY",
+  "phase1_scores": {
+    "regime": 5,
+    "session": 6,
+    "news": 8,
+    "weekly_4h_bias": 12,
+    "trend_1h": 5,
+    "trigger_15m": 6
+  },
+  "phase1_total": 42,
+  "phase2_scores": {
+    "liquidity_sweep": 6,
+    "order_block": 5,
+    "fvg": 3,
+    "bos_choch": 2
+  },
+  "phase2_total": 16,
+  "total_score": 58,
+  "reasoning": "For EURUSD, the market is showing a moderately strong trend with an ADX of 35.6 on the 4H ch...
+2026-04-17 16:18:36 | INFO     | 
+────────────────────────────────────────────────────────────
+2026-04-17 16:18:36 | INFO     | 🟡 AI DECISION: SCHEDULE
+2026-04-17 16:18:36 | INFO     |    Pair: EURUSD | Direction: BUY
+2026-04-17 16:18:36 | INFO     |    Phase 1: 42/60 (min 32)
+2026-04-17 16:18:36 | INFO     |      Regime: 5/10 | Session: 6/8 | News: 8/8
+2026-04-17 16:18:36 | INFO     |      Bias: 12/14 | Trend: 5/12 | Trigger: 6/8
+2026-04-17 16:18:36 | INFO     |    Phase 2: 16/20 (min 10)
+2026-04-17 16:18:36 | INFO     |      Liquidity: 6/8 | OB: 5/5 | FVG: 3/4 | BOS: 2/3
+2026-04-17 16:18:36 | INFO     |    Total: 58/80 (72%) (min 48 = 60%)
+2026-04-17 16:18:36 | INFO     |    ⏰ Schedule in: 15 min
+2026-04-17 16:18:36 | INFO     |    Reason: Waiting for the 1H trend to align better with the bullish bias; currently, the RSI is at 59 and needs to confirm a stronger upward movement.
+2026-04-17 16:18:36 | INFO     |    Reasoning: For EURUSD, the market is showing a moderately strong trend with an ADX of 35.6 on the 4H chart, indicating a trending market. The session quality is good as it is during the London session. There are no high-impact news events within 2 hours, providing a favorable environment for trading. The weekl...
+2026-04-17 16:18:36 | INFO     | ────────────────────────────────────────────────────────────
+2026-04-17 16:18:36 | INFO     | 🟡 Decision: SCHEDULE — waking up in 15 min
+2026-04-17 16:18:36 | INFO     |    Reason: Waiting for the 1H trend to align better with the bullish bias; currently, the RSI is at 59 and needs to confirm a stronger upward movement.
+2026-04-17 16:18:36 | INFO     | 📝 Trade logged: SCHEDULE EURUSD (score: 58)
+2026-04-17 16:18:36 | INFO     | ⏰ Next analysis in 15 min (at 11:03:36 UTC)
+2026-04-17 16:18:36 | INFO     |    Reason: Waiting for the 1H trend to align better with the bullish bias; currently, the RSI is at 59 and needs to confirm a stronger upward movement.
+2026-04-17 16:29:36 | INFO     | 
+🛑 Shutdown requested — finishing current cycle...
+2026-04-17 16:29:37 | INFO     | 🛑 Shutting down bot...
+2026-04-17 16:29:37 | INFO     | ⏰ Scheduler stopped
+2026-04-17 16:29:37 | INFO     | 👋 Smart Money Trading Bot stopped. Goodbye!
+2026-04-17 16:29:43 | INFO     | 🚀 Starting Smart Money Trading Bot v2.0...
+2026-04-17 16:29:43 | INFO     | ✅ LLM API key configured (model: gpt-4o-mini)
+2026-04-17 16:29:47 | INFO     | ✅ MT5 connected — Balance: $3000.00 | Leverage: 1:2000
+2026-04-17 16:29:47 | INFO     |    Risk budget: $150.00/trade (5.0%) | Max SL: 100 pips at 0.01 lot
+2026-04-17 16:29:47 | INFO     | ✅ Phase 1 scoring: 60 pts across 6 components
+2026-04-17 16:29:47 | INFO     | ✅ Phase 2 scoring: 20 pts across 4 components
+2026-04-17 16:29:47 | INFO     | ⏰ Scheduler started (UTC timezone)
+2026-04-17 16:29:47 | INFO     | 
+🔄 Running initial analysis cycle...
+2026-04-17 16:29:47 | INFO     | 
+════════════════════════════════════════════════════════════
+2026-04-17 16:29:47 | INFO     | 🔄 ANALYSIS CYCLE START — 2026-04-17 10:59:47 UTC
+2026-04-17 16:29:47 | INFO     |    Mode: demo | Pairs: EURUSD, GBPUSD
+2026-04-17 16:29:47 | INFO     | ════════════════════════════════════════════════════════════
+2026-04-17 16:29:47 | INFO     | 
+📋 Step 1: Running hard gates...
+2026-04-17 16:29:48 | INFO     |   ✅ EURUSD ADX 4H = 35.6 ≥ 20 (trending)
+2026-04-17 16:29:48 | INFO     |   ✅ GBPUSD ADX 4H = 33.3 ≥ 20 (trending)
+2026-04-17 16:29:49 | INFO     | ✅ All gates passed
+2026-04-17 16:29:49 | INFO     | 
+📊 Step 2: Collecting market data...
+2026-04-17 16:29:53 | INFO     | 📊 Collecting data for EURUSD...
+2026-04-17 16:29:55 | INFO     | 📊 Collecting data for GBPUSD...
+2026-04-17 16:29:56 | INFO     | ✅ Data collection complete for 2 pairs
+2026-04-17 16:29:56 | INFO     | 📈 Today's stats: 0 trades executed, 0 TAKE attempts, 0 rejections, P&L: $0.00
+2026-04-17 16:29:56 | INFO     | 
+🧠 Step 3: AI Trader Brain analyzing...
+2026-04-17 16:29:56 | INFO     | 🧠 Sending data to AI Trader Brain...
+2026-04-17 16:30:02 | DEBUG    | AI raw response: ```json
+{
+  "decision": "LEAVE",
+  "pair": null,
+  "direction": null,
+  "phase1_scores": {
+    "regime": 4,
+    "session": 6,
+    "news": 8,
+    "weekly_4h_bias": 10,
+    "trend_1h": 5,
+    "trigger_15m": 4
+  },
+  "phase1_total": 37,
+  "phase2_scores": {
+    "liquidity_sweep": 3,
+    "order_block": 2,
+    "fvg": 1,
+    "bos_choch": 1
+  },
+  "phase2_total": 7,
+  "total_score": 44,
+  "reasoning": "For EURUSD, the market is in a weak trend with an ADX of 14.99, scoring 4 for regime. The session is ...
+2026-04-17 16:30:02 | INFO     | 
+────────────────────────────────────────────────────────────
+2026-04-17 16:30:02 | INFO     | 🔴 AI DECISION: LEAVE
+2026-04-17 16:30:02 | INFO     |    Phase 1: 37/60 (min 32)
+2026-04-17 16:30:02 | INFO     |      Regime: 4/10 | Session: 6/8 | News: 8/8
+2026-04-17 16:30:02 | INFO     |      Bias: 10/14 | Trend: 5/12 | Trigger: 4/8
+2026-04-17 16:30:02 | INFO     |    Phase 2: 7/20 (min 10)
+2026-04-17 16:30:02 | INFO     |      Liquidity: 3/8 | OB: 2/5 | FVG: 1/4 | BOS: 1/3
+2026-04-17 16:30:02 | INFO     |    Total: 44/80 (55%) (min 48 = 60%)
+2026-04-17 16:30:02 | INFO     |    Reasoning: For EURUSD, the market is in a weak trend with an ADX of 14.99, scoring 4 for regime. The session is during the London session, scoring 6. There are no high-impact news events within 2 hours, scoring 8. Weekly and 4H EMAs are aligned, scoring 10. The 1H trend shows mixed signals with an RSI of 59.1 ...
+2026-04-17 16:30:02 | INFO     | ────────────────────────────────────────────────────────────
+2026-04-17 16:30:02 | INFO     | 🔴 Decision: LEAVE — no viable setup
+2026-04-17 16:30:02 | INFO     | 📝 Trade logged: LEAVE  (score: 44)
+2026-04-17 16:30:02 | INFO     | ⏰ Next analysis in 15 min (at 11:15:02 UTC)
+2026-04-17 16:30:02 | INFO     |    Reason: Default scan interval
+2026-04-17 16:30:02 | INFO     | 
+⏳ Bot is running. Press Ctrl+C to stop.
+2026-04-17 16:30:49 | INFO     | 
+🛑 Shutdown requested — finishing current cycle...
+2026-04-17 16:30:49 | INFO     | 🛑 Shutting down bot...
+2026-04-17 16:30:49 | INFO     | ⏰ Scheduler stopped
+2026-04-17 16:30:49 | INFO     | 👋 Smart Money Trading Bot stopped. Goodbye!
+2026-04-17 16:30:52 | INFO     | 🚀 Starting Smart Money Trading Bot v2.0...
+2026-04-17 16:30:52 | INFO     | ✅ LLM API key configured (model: gpt-4o-mini)
+2026-04-17 16:30:56 | INFO     | ✅ MT5 connected — Balance: $3000.00 | Leverage: 1:2000
+2026-04-17 16:30:56 | INFO     |    Risk budget: $150.00/trade (5.0%) | Max SL: 100 pips at 0.01 lot
+2026-04-17 16:30:56 | INFO     | ✅ Phase 1 scoring: 60 pts across 6 components
+2026-04-17 16:30:56 | INFO     | ✅ Phase 2 scoring: 20 pts across 4 components
+2026-04-17 16:30:56 | INFO     | ⏰ Scheduler started (UTC timezone)
+2026-04-17 16:30:56 | INFO     | 
+🔄 Running initial analysis cycle...
+2026-04-17 16:30:56 | INFO     | 
+════════════════════════════════════════════════════════════
+2026-04-17 16:30:56 | INFO     | 🔄 ANALYSIS CYCLE START — 2026-04-17 11:00:56 UTC
+2026-04-17 16:30:56 | INFO     |    Mode: demo | Pairs: EURUSD, GBPUSD
+2026-04-17 16:30:56 | INFO     | ════════════════════════════════════════════════════════════
+2026-04-17 16:30:56 | INFO     | 
+📋 Step 1: Running hard gates...
+2026-04-17 16:30:56 | INFO     |   ✅ EURUSD ADX 4H = 35.6 ≥ 20 (trending)
+2026-04-17 16:30:57 | INFO     |   ✅ GBPUSD ADX 4H = 33.3 ≥ 20 (trending)
+2026-04-17 16:30:57 | WARNING  | News calendar fetch failed: 429 Client Error: Too Many Requests for url: https://nfs.faireconomy.media/ff_calendar_thisweek.json
+2026-04-17 16:30:57 | INFO     | 🚫 News gate FAILED: News calendar unavailable — blocking (fail-closed). Retry in 5min.
+2026-04-17 16:30:57 | INFO     | ⏳ Scheduling retry in 5 min
+2026-04-17 16:30:57 | INFO     | ⏰ Next analysis in 5 min (at 11:05:57 UTC)
+2026-04-17 16:30:57 | INFO     |    Reason: Gate retry: News calendar unavailable — blocking (fail-closed). Retry in 5min.
+2026-04-17 16:30:57 | INFO     | 
+⏳ Bot is running. Press Ctrl+C to stop.
+2026-04-17 16:33:29 | INFO     | 
+🛑 Shutdown requested — finishing current cycle...
+2026-04-17 16:33:30 | INFO     | 🛑 Shutting down bot...
+2026-04-17 16:33:30 | INFO     | ⏰ Scheduler stopped
+2026-04-17 16:33:30 | INFO     | 👋 Smart Money Trading Bot stopped. Goodbye!
+2026-04-17 16:33:32 | INFO     | 🚀 Starting Smart Money Trading Bot v2.0...
+2026-04-17 16:33:32 | INFO     | ✅ LLM API key configured (model: gpt-4o-mini)
+2026-04-17 16:33:36 | INFO     | ✅ MT5 connected — Balance: $3000.00 | Leverage: 1:2000
+2026-04-17 16:33:36 | INFO     |    Risk budget: $150.00/trade (5.0%) | Max SL: 100 pips at 0.01 lot
+2026-04-17 16:33:36 | INFO     | ✅ Phase 1 scoring: 60 pts across 6 components
+2026-04-17 16:33:36 | INFO     | ✅ Phase 2 scoring: 20 pts across 4 components
+2026-04-17 16:33:36 | INFO     | ⏰ Scheduler started (UTC timezone)
+2026-04-17 16:33:36 | INFO     | 
+🔄 Running initial analysis cycle...
+2026-04-17 16:33:36 | INFO     | 
+════════════════════════════════════════════════════════════
+2026-04-17 16:33:36 | INFO     | 🔄 ANALYSIS CYCLE START — 2026-04-17 11:03:36 UTC
+2026-04-17 16:33:36 | INFO     |    Mode: demo | Pairs: EURUSD, GBPUSD
+2026-04-17 16:33:36 | INFO     | ════════════════════════════════════════════════════════════
+2026-04-17 16:33:36 | INFO     | 
+📋 Step 1: Running hard gates...
+2026-04-17 16:33:37 | ERROR    | ADX gate error for EURUSD: Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.
+2026-04-17 16:33:37 | INFO     |   ⚠️ ADX gate error for EURUSD (Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.) — blocking (fail-closed)
+2026-04-17 16:33:37 | ERROR    | ADX gate error for GBPUSD: Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.
+2026-04-17 16:33:37 | INFO     |   ⚠️ ADX gate error for GBPUSD (Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.) — blocking (fail-closed)
+2026-04-17 16:33:37 | INFO     | 🚫 ADX gate FAILED: No pairs trending: ADX gate error for EURUSD (Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.) — blocking (fail-closed); ADX gate error for GBPUSD (Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.) — blocking (fail-closed)
+2026-04-17 16:33:37 | INFO     | ⏳ Scheduling retry in 30 min
+2026-04-17 16:33:37 | INFO     | ⏰ Next analysis in 30 min (at 11:33:37 UTC)
+2026-04-17 16:33:37 | INFO     |    Reason: Gate retry: No pairs trending: ADX gate error for EURUSD (Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.) — blocking (fail-closed); ADX gate error for GBPUSD (Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.) — blocking (fail-closed)
+2026-04-17 16:33:37 | INFO     | 
+⏳ Bot is running. Press Ctrl+C to stop.
+2026-04-17 16:33:52 | INFO     | 
+🛑 Shutdown requested — finishing current cycle...
+2026-04-17 16:33:53 | INFO     | 🛑 Shutting down bot...
+2026-04-17 16:33:53 | INFO     | ⏰ Scheduler stopped
+2026-04-17 16:33:53 | INFO     | 👋 Smart Money Trading Bot stopped. Goodbye!
+2026-04-17 16:33:55 | INFO     | 🚀 Starting Smart Money Trading Bot v2.0...
+2026-04-17 16:33:55 | INFO     | ✅ LLM API key configured (model: gpt-4o-mini)
+2026-04-17 16:34:00 | INFO     | ✅ MT5 connected — Balance: $3000.00 | Leverage: 1:2000
+2026-04-17 16:34:00 | INFO     |    Risk budget: $150.00/trade (5.0%) | Max SL: 100 pips at 0.01 lot
+2026-04-17 16:34:00 | INFO     | ✅ Phase 1 scoring: 60 pts across 6 components
+2026-04-17 16:34:00 | INFO     | ✅ Phase 2 scoring: 20 pts across 4 components
+2026-04-17 16:34:00 | INFO     | ⏰ Scheduler started (UTC timezone)
+2026-04-17 16:34:00 | INFO     | 
+🔄 Running initial analysis cycle...
+2026-04-17 16:34:00 | INFO     | 
+════════════════════════════════════════════════════════════
+2026-04-17 16:34:00 | INFO     | 🔄 ANALYSIS CYCLE START — 2026-04-17 11:04:00 UTC
+2026-04-17 16:34:00 | INFO     |    Mode: demo | Pairs: EURUSD, GBPUSD
+2026-04-17 16:34:00 | INFO     | ════════════════════════════════════════════════════════════
+2026-04-17 16:34:00 | INFO     | 
+📋 Step 1: Running hard gates...
+2026-04-17 16:34:00 | ERROR    | ADX gate error for EURUSD: Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.
+2026-04-17 16:34:00 | INFO     |   ⚠️ ADX gate error for EURUSD (Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.) — blocking (fail-closed)
+2026-04-17 16:34:00 | ERROR    | ADX gate error for GBPUSD: Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.
+2026-04-17 16:34:00 | INFO     |   ⚠️ ADX gate error for GBPUSD (Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.) — blocking (fail-closed)
+2026-04-17 16:34:00 | INFO     | 🚫 ADX gate FAILED: No pairs trending: ADX gate error for EURUSD (Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.) — blocking (fail-closed); ADX gate error for GBPUSD (Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.) — blocking (fail-closed)
+2026-04-17 16:34:00 | INFO     | ⏳ Scheduling retry in 30 min
+2026-04-17 16:34:00 | INFO     | ⏰ Next analysis in 30 min (at 11:34:00 UTC)
+2026-04-17 16:34:00 | INFO     |    Reason: Gate retry: No pairs trending: ADX gate error for EURUSD (Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.) — blocking (fail-closed); ADX gate error for GBPUSD (Can't access TradingView's API. HTTP status code: 429. Check for invalid symbol, exchange, or indicators.) — blocking (fail-closed)
+2026-04-17 16:34:00 | INFO     | 
+⏳ Bot is running. Press Ctrl+C to stop.
+2026-04-17 16:36:20 | INFO     | 
+🛑 Shutdown requested — finishing current cycle...
+2026-04-17 16:36:21 | INFO     | 🛑 Shutting down bot...
+2026-04-17 16:36:21 | INFO     | ⏰ Scheduler stopped
+2026-04-17 16:36:21 | INFO     | 👋 Smart Money Trading Bot stopped. Goodbye!
+2026-04-17 16:36:23 | INFO     | 🚀 Starting Smart Money Trading Bot v2.0...
+2026-04-17 16:36:23 | INFO     | ✅ LLM API key configured (model: gpt-4o-mini)
+2026-04-17 16:36:28 | INFO     | ✅ MT5 connected — Balance: $3000.00 | Leverage: 1:2000
+2026-04-17 16:36:28 | INFO     |    Risk budget: $150.00/trade (5.0%) | Max SL: 100 pips at 0.01 lot
+2026-04-17 16:36:28 | INFO     | ✅ Phase 1 scoring: 60 pts across 6 components
+2026-04-17 16:36:28 | INFO     | ✅ Phase 2 scoring: 20 pts across 4 components
+2026-04-17 16:36:28 | INFO     | ⏰ Scheduler started (UTC timezone)
+2026-04-17 16:36:28 | INFO     | 
+🔄 Running initial analysis cycle...
+2026-04-17 16:36:28 | INFO     | 
+════════════════════════════════════════════════════════════
+2026-04-17 16:36:28 | INFO     | 🔄 ANALYSIS CYCLE START — 2026-04-17 11:06:28 UTC
+2026-04-17 16:36:28 | INFO     |    Mode: demo | Pairs: EURUSD, GBPUSD
+2026-04-17 16:36:28 | INFO     | ════════════════════════════════════════════════════════════
+2026-04-17 16:36:28 | INFO     | 
+📋 Step 1: Running hard gates...
+2026-04-17 16:36:28 | INFO     |   ✅ EURUSD ADX 4H = 35.6 ≥ 20 (trending)
+2026-04-17 16:36:28 | INFO     |   ✅ GBPUSD ADX 4H = 33.3 ≥ 20 (trending)
+2026-04-17 16:36:28 | INFO     | ✅ All gates passed (news gate disabled)
+2026-04-17 16:36:28 | INFO     | 
+📊 Step 2: Collecting market data...
+2026-04-17 16:36:32 | INFO     | 📊 Collecting data for EURUSD...
+2026-04-17 16:36:36 | INFO     | 📊 Collecting data for GBPUSD...
+2026-04-17 16:36:38 | INFO     | ✅ Data collection complete for 2 pairs
+2026-04-17 16:36:38 | INFO     | 📈 Today's stats: 0 trades executed, 0 TAKE attempts, 0 rejections, P&L: $0.00
+2026-04-17 16:36:38 | INFO     | 
+🧠 Step 3: AI Trader Brain analyzing...
+2026-04-17 16:36:38 | INFO     | 🧠 Sending data to AI Trader Brain...
+2026-04-17 16:36:43 | DEBUG    | AI raw response: {
+  "decision": "LEAVE",
+  "pair": null,
+  "direction": null,
+  "phase1_scores": {
+    "regime": 5,
+    "session": 6,
+    "news": 8,
+    "weekly_4h_bias": 10,
+    "trend_1h": 4,
+    "trigger_15m": 3
+  },
+  "phase1_total": 36,
+  "phase2_scores": {
+    "liquidity_sweep": 3,
+    "order_block": 2,
+    "fvg": 0,
+    "bos_choch": 0
+  },
+  "phase2_total": 5,
+  "total_score": 41,
+  "reasoning": "For EURUSD, the regime score is moderate (5) due to ADX being below 25, indicating a weak trend despite some ...
+2026-04-17 16:36:43 | INFO     | 
+────────────────────────────────────────────────────────────
+2026-04-17 16:36:43 | INFO     | 🔴 AI DECISION: LEAVE
+2026-04-17 16:36:43 | INFO     |    Phase 1: 36/60 (min 32)
+2026-04-17 16:36:43 | INFO     |      Regime: 5/10 | Session: 6/8 | News: 8/8
+2026-04-17 16:36:43 | INFO     |      Bias: 10/14 | Trend: 4/12 | Trigger: 3/8
+2026-04-17 16:36:43 | INFO     |    Phase 2: 5/20 (min 10)
+2026-04-17 16:36:43 | INFO     |      Liquidity: 3/8 | OB: 2/5 | FVG: 0/4 | BOS: 0/3
+2026-04-17 16:36:43 | INFO     |    Total: 41/80 (51%) (min 48 = 60%)
+2026-04-17 16:36:43 | INFO     |    Reasoning: For EURUSD, the regime score is moderate (5) due to ADX being below 25, indicating a weak trend despite some bullish DI separation. The session quality is good (6) as it is during the London session. There are no high-impact news events within 2 hours, scoring full points for news (8). The weekly an...
+2026-04-17 16:36:43 | INFO     | ────────────────────────────────────────────────────────────
+2026-04-17 16:36:43 | INFO     | 🔴 Decision: LEAVE — no viable setup
+2026-04-17 16:36:43 | INFO     | 📝 Trade logged: LEAVE  (score: 41)
+2026-04-17 16:36:43 | INFO     | ⏰ Next analysis in 15 min (at 11:21:43 UTC)
+2026-04-17 16:36:43 | INFO     |    Reason: Default scan interval
+2026-04-17 16:36:43 | INFO     | 
+⏳ Bot is running. Press Ctrl+C to stop.
+2026-04-17 16:40:00 | INFO     | 
+🛑 Shutdown requested — finishing current cycle...
+2026-04-17 16:40:01 | INFO     | 
+🛑 Shutdown requested — finishing current cycle...
+2026-04-17 16:40:01 | INFO     | 🛑 Shutting down bot...
+2026-04-17 16:40:01 | INFO     | ⏰ Scheduler stopped
+2026-04-17 16:40:01 | INFO     | 👋 Smart Money Trading Bot stopped. Goodbye!

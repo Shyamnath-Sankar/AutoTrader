@@ -2,8 +2,8 @@
 scheduler.py — APScheduler management for the Smart Money Trading Bot.
 
 Handles:
-  - Creating one-shot jobs when the AI says SCHEDULE (schedule for later)
-  - Managing the main scan loop
+  - Scheduling the next analysis scan at a fixed interval
+  - Managing gate retry and rejection cooldown timers
   - Ensuring jobs don't stack or conflict
 
 Key fix: ALL analysis jobs use the SAME job ID ("analysis_job") to prevent
@@ -62,7 +62,7 @@ class BotScheduler:
     ):
         """
         Schedule a one-shot analysis job at a specific time in the future.
-        Used for AI SCHEDULE decisions, gate retries, and default scans.
+        Used for gate retries, rejection cooldowns, and default scans.
 
         ALL analysis jobs use the same job ID to prevent stacking.
         If a job already exists, it is replaced (not duplicated).
@@ -74,9 +74,6 @@ class BotScheduler:
         # Validate minutes
         if minutes_from_now <= 0:
             minutes_from_now = settings.DEFAULT_SCAN_INTERVAL_MINUTES
-        if minutes_from_now > settings.MAX_SCHEDULE_MINUTES:
-            minutes_from_now = settings.MAX_SCHEDULE_MINUTES
-            logger.warning(f"Schedule capped to {settings.MAX_SCHEDULE_MINUTES} minutes")
 
         run_time = datetime.now(pytz.UTC) + timedelta(minutes=minutes_from_now)
 

@@ -4,7 +4,7 @@ main.py — Entry point & Orchestrator for the Smart Money Trading Bot.
 Architecture (per diagram):
   1. Hard gates (Python, not AI) — session, ADX, news
   2. Data collection layer — tradingview-ta, SMC library, news, MT5 account
-  3. AI Trader Brain (Agent 1) — scores everything, outputs TAKE / LEAVE / SCHEDULE
+  3. AI Trader Brain (Agent 1) — scores everything, outputs TAKE / LEAVE
   4. Risk Engine (Agent 2) — computes SL from swing structure, lot size, validates
   5. MT5 execution — place trade if approved
   6. Result logger — trades.json
@@ -188,92 +188,73 @@ def _run_analysis_cycle_locked():
 
     # ── Step 4: Route Decision ────────────────────────────────────────────
 
-    if decision.decision == "LEAVE":
-        # ── LEAVE: Log and reschedule at default interval ──
-        logger.info("🔴 Decision: LEAVE — no viable setup")
+    if decision.decision != "TAKE":
+        # ── LEAVE (or any non-TAKE): Log and reschedule at default interval ──
+        logger.info(f"🔴 Decision: LEAVE — no viable setup")
         trade_log.log_decision(decision)
         bot_scheduler.schedule_default_scan()
         return
 
-    elif decision.decision == "SCHEDULE":
-        # ── SCHEDULE: AI sets exact wakeup time ──
-        schedule_min = decision.schedule_minutes or settings.DEFAULT_SCAN_INTERVAL_MINUTES
-        logger.info(f"🟡 Decision: SCHEDULE — waking up in {schedule_min} min")
-        if decision.schedule_reason:
-            logger.info(f"   Reason: {decision.schedule_reason}")
-        trade_log.log_decision(decision)
-        bot_scheduler.schedule_analysis(
-            minutes_from_now=schedule_min,
-            reason=decision.schedule_reason or "AI scheduled wakeup",
+    # ── TAKE: Run Risk Engine → MT5 ──
+    logger.info("🟢 Decision: TAKE — running risk engine...")
+
+    risk_result = evaluate(
+        decision=decision,
+        mt5=mt5,
+        market_data=market_data,
+        trades_today_count=today_stats["executed_count"],
+        daily_pnl=today_stats["total_pnl"],
+        take_attempts_today=today_stats["take_attempts"],
+    )
+
+    if not risk_result.approved:
+        # ── REJECTED by risk engine ──
+        logger.info(f"🚫 Risk REJECTED: {risk_result.reason}")
+        trade_log.log_decision(decision, risk=risk_result)
+
+        # Compute cooldown based on consecutive rejections
+        consecutive = trade_log.get_consecutive_rejections(pair=decision.pair)
+        cooldown = _compute_cooldown_minutes(consecutive)
+        logger.info(
+            f"⏳ Rejection cooldown: {cooldown} min "
+            f"(consecutive rejections: {consecutive})"
+        )
+        bot_scheduler.schedule_cooldown(
+            cooldown_minutes=cooldown,
+            reason=f"TAKE rejected ({consecutive} consecutive): {risk_result.reason}",
         )
         return
 
-    elif decision.decision == "TAKE":
-        # ── TAKE: Run Risk Engine → MT5 ──
-        logger.info("🟢 Decision: TAKE — running risk engine...")
+    # ── APPROVED — Execute trade on MT5 ──
+    logger.info("✅ Risk APPROVED — executing on MT5...")
 
-        risk_result = evaluate(
-            decision=decision,
-            mt5=mt5,
-            market_data=market_data,
-            trades_today_count=today_stats["executed_count"],
-            daily_pnl=today_stats["total_pnl"],
-            take_attempts_today=today_stats["take_attempts"],
+    if settings.MODE == "demo":
+        logger.info("🏷️  MODE: DEMO — placing trade on demo account")
+
+    order_result = mt5.place_market_order(
+        symbol=decision.pair,
+        direction=decision.direction,
+        volume=risk_result.lots,
+        stop_loss=risk_result.sl_price,
+        take_profit=risk_result.tp_price,
+    )
+
+    if order_result.success:
+        logger.info(
+            f"🎯 Trade EXECUTED! Ticket #{order_result.order} | "
+            f"{decision.direction} {risk_result.lots} lots {decision.pair} | "
+            f"Entry: {order_result.price} | SL: {risk_result.sl_price} ({risk_result.sl_pips}pips) | "
+            f"TP: {risk_result.tp_price} ({risk_result.tp_pips}pips) | "
+            f"R:R 1:{risk_result.rr_ratio:.1f}"
         )
-
-        if not risk_result.approved:
-            # ── REJECTED by risk engine ──
-            logger.info(f"🚫 Risk REJECTED: {risk_result.reason}")
-            trade_log.log_decision(decision, risk=risk_result)
-
-            # Compute cooldown based on consecutive rejections
-            consecutive = trade_log.get_consecutive_rejections(pair=decision.pair)
-            cooldown = _compute_cooldown_minutes(consecutive)
-            logger.info(
-                f"⏳ Rejection cooldown: {cooldown} min "
-                f"(consecutive rejections: {consecutive})"
-            )
-            bot_scheduler.schedule_cooldown(
-                cooldown_minutes=cooldown,
-                reason=f"TAKE rejected ({consecutive} consecutive): {risk_result.reason}",
-            )
-            return
-
-        # ── APPROVED — Execute trade on MT5 ──
-        logger.info("✅ Risk APPROVED — executing on MT5...")
-
-        if settings.MODE == "demo":
-            logger.info("🏷️  MODE: DEMO — placing trade on demo account")
-
-        order_result = mt5.place_market_order(
-            symbol=decision.pair,
-            direction=decision.direction,
-            volume=risk_result.lots,
-            stop_loss=risk_result.sl_price,
-            take_profit=risk_result.tp_price,
-        )
-
-        if order_result.success:
-            logger.info(
-                f"🎯 Trade EXECUTED! Ticket #{order_result.order} | "
-                f"{decision.direction} {risk_result.lots} lots {decision.pair} | "
-                f"Entry: {order_result.price} | SL: {risk_result.sl_price} ({risk_result.sl_pips}pips) | "
-                f"TP: {risk_result.tp_price} ({risk_result.tp_pips}pips) | "
-                f"R:R 1:{risk_result.rr_ratio:.1f}"
-            )
-        else:
-            logger.error(f"❌ Trade FAILED: {order_result.message} (code: {order_result.error_code})")
-
-        # Log everything
-        trade_log.log_decision(decision, risk=risk_result, order=order_result)
-
-        # Schedule next scan
-        bot_scheduler.schedule_default_scan()
-        return
-
     else:
-        logger.warning(f"Unknown decision: {decision.decision}")
-        bot_scheduler.schedule_default_scan()
+        logger.error(f"❌ Trade FAILED: {order_result.message} (code: {order_result.error_code})")
+
+    # Log everything
+    trade_log.log_decision(decision, risk=risk_result, order=order_result)
+
+    # Schedule next scan
+    bot_scheduler.schedule_default_scan()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -315,7 +296,7 @@ def print_banner():
 ║  Risk:       {risk_line:<46}║
 ║  Overtrading: max {settings.MAX_TAKE_ATTEMPTS_PER_DAY} TAKE attempts · {settings.REJECTION_COOLDOWN_MINUTES}min cooldown      ║
 ║  SL:         From swing structure + {settings.SL_BUFFER_PIPS}pip buffer             ║
-║  Decisions:  TAKE / SCHEDULE / LEAVE                        ║
+║  Decisions:  TAKE / LEAVE                                   ║
 ╚══════════════════════════════════════════════════════════════╝
 """
     print(banner)

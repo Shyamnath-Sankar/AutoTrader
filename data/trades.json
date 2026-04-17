@@ -416,5 +416,81 @@
     "result": null,
     "pnl": null,
     "pips_result": null
+  },
+  {
+    "timestamp": "2026-04-17T11:00:02.538696+00:00",
+    "pair": "",
+    "direction": "",
+    "decision": "LEAVE",
+    "phase1_scores": {
+      "regime": 4,
+      "session": 6,
+      "news": 8,
+      "weekly_4h_bias": 10,
+      "trend_1h": 5,
+      "trigger_15m": 4
+    },
+    "phase1_total": 37,
+    "phase2_scores": {
+      "liquidity_sweep": 3,
+      "order_block": 2,
+      "fvg": 1,
+      "bos_choch": 1
+    },
+    "phase2_total": 7,
+    "total_score": 44,
+    "reasoning": "For EURUSD, the market is in a weak trend with an ADX of 14.99, scoring 4 for regime. The session is during the London session, scoring 6. There are no high-impact news events within 2 hours, scoring 8. Weekly and 4H EMAs are aligned, scoring 10. The 1H trend shows mixed signals with an RSI of 59.1 and MACD divergence, scoring 5. The 15M trigger shows a weak signal, scoring 4. Total Phase 1 score is 37, below the minimum required. In Phase 2, the liquidity sweep is old and not recent, scoring 3. The order block is active but not at the current price, scoring 2. The FVG is not active, scoring 1. The BOS/CHoCH confirmation is weak, scoring 1. Total Phase 2 score is 7, leading to a total score of 44, which is below the minimum required of 48. For GBPUSD, the analysis shows similar weaknesses with a total score of 44 as well. Therefore, both pairs do not meet the thresholds, leading to a decision to LEAVE.",
+    "risk_approved": null,
+    "risk_reason": "",
+    "lots": 0.0,
+    "entry_price": 0.0,
+    "sl_price": 0.0,
+    "tp_price": 0.0,
+    "sl_pips": 0,
+    "tp_pips": 0,
+    "rr_ratio": 0.0,
+    "mt5_ticket": null,
+    "mt5_message": "",
+    "result": null,
+    "pnl": null,
+    "pips_result": null
+  },
+  {
+    "timestamp": "2026-04-17T11:06:43.588897+00:00",
+    "pair": "",
+    "direction": "",
+    "decision": "LEAVE",
+    "phase1_scores": {
+      "regime": 5,
+      "session": 6,
+      "news": 8,
+      "weekly_4h_bias": 10,
+      "trend_1h": 4,
+      "trigger_15m": 3
+    },
+    "phase1_total": 36,
+    "phase2_scores": {
+      "liquidity_sweep": 3,
+      "order_block": 2,
+      "fvg": 0,
+      "bos_choch": 0
+    },
+    "phase2_total": 5,
+    "total_score": 41,
+    "reasoning": "For EURUSD, the regime score is moderate (5) due to ADX being below 25, indicating a weak trend despite some bullish DI separation. The session quality is good (6) as it is during the London session. There are no high-impact news events within 2 hours, scoring full points for news (8). The weekly and 4H bias is aligned (10), but the 1H trend confirmation is weak (4) as the indicators are mixed. The 15M trigger score is low (3) due to a lack of a clear entry signal. In Phase 2, the liquidity sweep occurred but is stale (3), the order block is not fresh (2), and there are no active FVGs (0) or clear BOS/CHoCH confirmations (0). The total score of 41 does not meet the minimum required to take a trade. For GBPUSD, the scores are similarly low, with no significant improvements in the context or SMC confirmations. Therefore, the decision is to LEAVE as neither pair meets the thresholds for a viable trade setup.",
+    "risk_approved": null,
+    "risk_reason": "",
+    "lots": 0.0,
+    "entry_price": 0.0,
+    "sl_price": 0.0,
+    "tp_price": 0.0,
+    "sl_pips": 0,
+    "tp_pips": 0,
+    "rr_ratio": 0.0,
+    "mt5_ticket": null,
+    "mt5_message": "",
+    "result": null,
+    "pnl": null,
+    "pips_result": null
   }
 ]
