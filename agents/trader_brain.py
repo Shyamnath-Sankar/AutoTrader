@@ -56,12 +56,16 @@ def _build_system_prompt(max_sl_pips: dict[str, int], previous_decision: dict | 
         max_sl_pips: dict of pair → max affordable SL pips at min lot
         previous_decision: previous cycle's decision for context (anti-inflation)
     """
-    total_max = settings.PHASE1_MAX_SCORE + settings.PHASE2_MAX_SCORE
+    total_max = settings.get_total_max_score()
+    total_min_required = settings.get_total_min_required()
+    total_min_pct_display = int(settings.TOTAL_MIN_SCORE_PCT * 100)
 
-    # Build R:R tier description
+    # Build R:R tier description from percentage-based tiers
     rr_desc = ""
     for tier in settings.RR_TIERS:
-        rr_desc += f"  - Score {tier['min_score']}–{tier['max_score']}: minimum R:R 1:{tier['rr_ratio']:.0f}\n"
+        lo = int(tier['min_pct'] * 100)
+        hi = int(tier['max_pct'] * 100) if tier['max_pct'] <= 1.0 else 100
+        rr_desc += f"  - Score {lo}%–{hi}% of max ({int(tier['min_pct'] * total_max)}–{int(min(tier['max_pct'], 1.0) * total_max)} pts): minimum R:R 1:{tier['rr_ratio']:.0f}\n"
 
     # Build SL budget info per pair
     sl_budget_desc = "\n".join(
@@ -72,13 +76,15 @@ def _build_system_prompt(max_sl_pips: dict[str, int], previous_decision: dict | 
     # Build previous decision context
     prev_context = ""
     if previous_decision:
+        prev_total = previous_decision.get('total_score', 0)
+        prev_pct = settings.get_score_pct(prev_total) * 100 if prev_total else 0
         prev_context = f"""
 ═══ PREVIOUS ANALYSIS (compare against — justify score changes) ═══
 Previous decision: {previous_decision.get('decision', 'N/A')}
 Previous pair: {previous_decision.get('pair', 'N/A')}
 Previous Phase 1: {previous_decision.get('phase1_total', 'N/A')}/{settings.PHASE1_MAX_SCORE}
 Previous Phase 2: {previous_decision.get('phase2_total', 'N/A')}/{settings.PHASE2_MAX_SCORE}
-Previous total: {previous_decision.get('total_score', 'N/A')}/{total_max}
+Previous total: {prev_total}/{total_max} ({prev_pct:.0f}%)
 Time since: recent (within the last scan cycle)
 
 ⚠️ If your scores change significantly from the previous scan, you MUST explain
@@ -167,15 +173,19 @@ PHASE 2 MINIMUM TO PROCEED: {settings.PHASE2_MIN_REQUIRED} / {settings.PHASE2_MA
 ────────────────────────────────────────
 
 TOTAL SCORE = Phase 1 + Phase 2 (max {total_max} points)
-MINIMUM TOTAL TO TAKE: {settings.TOTAL_MIN_REQUIRED}
+MINIMUM TOTAL TO TAKE: {total_min_required}/{total_max} ({total_min_pct_display}% of max)
 
 BOTH Phase 1 ≥ {settings.PHASE1_MIN_REQUIRED} AND Phase 2 ≥ {settings.PHASE2_MIN_REQUIRED} are required. Not just total.
+The total score must also reach at least {total_min_pct_display}% of the maximum ({total_min_required} points).
 
-R:R Requirements by score:
+R:R Requirements by score percentage:
 {rr_desc}
+Lower conviction (60-70% of max) demands higher R:R (1:3) for capital protection.
+Higher conviction (>70% of max) allows standard R:R (1:2).
+
 ═══ DECISION RULES ═══
 
-TAKE: Phase 1 ≥ {settings.PHASE1_MIN_REQUIRED}, Phase 2 ≥ {settings.PHASE2_MIN_REQUIRED}, Total ≥ {settings.TOTAL_MIN_REQUIRED}
+TAKE: Phase 1 ≥ {settings.PHASE1_MIN_REQUIRED}, Phase 2 ≥ {settings.PHASE2_MIN_REQUIRED}, Total ≥ {total_min_pct_display}% of max ({total_min_required} pts)
   → You MUST provide: pair, direction (BUY/SELL)
   → The Risk Engine will compute SL/TP from swing structure — you do NOT set SL/TP
 
@@ -458,21 +468,25 @@ def _validate_decision(decision: TraderDecision) -> TraderDecision:
                 decision.schedule_reason = "Phase 2 (SMC) below threshold — waiting for confirmation"
             return decision
 
-        # Check total minimum
-        if decision.total_score < settings.TOTAL_MIN_REQUIRED:
+        # Check total minimum (percentage-based)
+        total_min_required = settings.get_total_min_required()
+        score_pct = settings.get_score_pct(decision.total_score)
+        if decision.total_score < total_min_required:
+            pct_display = int(score_pct * 100)
+            min_pct_display = int(settings.TOTAL_MIN_SCORE_PCT * 100)
             logger.warning(
-                f"AI said TAKE but total ({decision.total_score}) "
-                f"< minimum ({settings.TOTAL_MIN_REQUIRED}) — overriding to SCHEDULE"
+                f"AI said TAKE but total ({decision.total_score}/{settings.get_total_max_score()} = {pct_display}%) "
+                f"< minimum ({total_min_required} = {min_pct_display}%) — overriding to SCHEDULE"
             )
             decision.decision = "SCHEDULE"
             decision.reasoning += (
-                f"\n[OVERRIDE] Total score {decision.total_score} below "
-                f"minimum {settings.TOTAL_MIN_REQUIRED}. Changed TAKE → SCHEDULE."
+                f"\n[OVERRIDE] Total score {decision.total_score} ({pct_display}%) below "
+                f"minimum {total_min_required} ({min_pct_display}%). Changed TAKE → SCHEDULE."
             )
             if not decision.schedule_minutes:
                 decision.schedule_minutes = settings.DEFAULT_SCAN_INTERVAL_MINUTES
             if not decision.schedule_reason:
-                decision.schedule_reason = "Total score below threshold — waiting for conditions to improve"
+                decision.schedule_reason = "Total score below percentage threshold — waiting for conditions to improve"
             return decision
 
         # Check required fields for TAKE
@@ -523,8 +537,12 @@ def _log_decision(decision: TraderDecision):
                 f"OB: {decision.phase2_scores.order_block}/{settings.P2_ORDER_BLOCK_POINTS} | "
                 f"FVG: {decision.phase2_scores.fvg}/{settings.P2_FVG_POINTS} | "
                 f"BOS: {decision.phase2_scores.bos_choch}/{settings.P2_BOS_CHOCH_POINTS}")
-    logger.info(f"   Total: {decision.total_score}/{settings.PHASE1_MAX_SCORE + settings.PHASE2_MAX_SCORE} "
-                f"(min {settings.TOTAL_MIN_REQUIRED})")
+    total_max = settings.get_total_max_score()
+    score_pct = settings.get_score_pct(decision.total_score)
+    total_min_required = settings.get_total_min_required()
+    logger.info(f"   Total: {decision.total_score}/{total_max} "
+                f"({score_pct * 100:.0f}%) "
+                f"(min {total_min_required} = {int(settings.TOTAL_MIN_SCORE_PCT * 100)}%)")
 
     if decision.schedule_minutes:
         logger.info(f"   ⏰ Schedule in: {decision.schedule_minutes} min")

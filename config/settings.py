@@ -15,9 +15,9 @@ load_dotenv()
 
 PHASE1_MAX_SCORE = 60           # total points available in Phase 1
 PHASE2_MAX_SCORE = 20           # total points available in Phase 2
-PHASE1_MIN_REQUIRED = 35        # minimum Phase 1 score to proceed
-PHASE2_MIN_REQUIRED = 12        # minimum Phase 2 score to proceed
-TOTAL_MIN_REQUIRED = 60         # minimum combined score to execute
+PHASE1_MIN_REQUIRED = 32        # minimum Phase 1 score to proceed
+PHASE2_MIN_REQUIRED = 10        # minimum Phase 2 score to proceed
+TOTAL_MIN_SCORE_PCT = 0.60      # minimum total score as % of max to TAKE (60%)
 
 # Phase 1 sub-score allocations (should sum to PHASE1_MAX_SCORE)
 P1_REGIME_POINTS = 10           # ADX + DI context
@@ -89,14 +89,13 @@ PAIR_PIP_VALUES_MICRO = {
 MAX_LOSS_PER_TRADE_PCT = 5.0    # max % of balance to risk per trade
 DAILY_LOSS_LIMIT_PCT = 10.0     # max % of balance allowed as daily loss
 SPREAD_PIPS = 2.0               # broker typical spread (used as fallback)
-MIN_RR_RATIO = 2.0              # minimum R:R safety floor
 MAX_TRADES_PER_DAY = 2
 
-# R:R scaling by score (lower conviction → demand higher R:R)
-# Boundaries are exclusive on max_score to avoid overlap
+# R:R scaling by score percentage (lower conviction → demand higher R:R)
+# min_pct is inclusive, max_pct is exclusive (except the last tier's 1.01 catches 100%)
 RR_TIERS = [
-    {"min_score": 60, "max_score": 67, "rr_ratio": 3.0},
-    {"min_score": 68, "max_score": 80, "rr_ratio": 2.0},
+    {"min_pct": 0.60, "max_pct": 0.70, "rr_ratio": 3.0},
+    {"min_pct": 0.70, "max_pct": 1.01, "rr_ratio": 2.0},
 ]
 
 # Pip values (for lot size calculation) — defaults for EUR/GBP pairs
@@ -184,8 +183,63 @@ TRADES_FILE = "data/trades.json"
 NEWS_CALENDAR_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# HELPER — compute max SL pips budget from balance at runtime
+# HELPERS
 # ═══════════════════════════════════════════════════════════════════════════════
+
+def get_total_max_score() -> int:
+    """Return the combined maximum score across both phases."""
+    return PHASE1_MAX_SCORE + PHASE2_MAX_SCORE
+
+
+def get_total_min_required() -> int:
+    """
+    Compute the minimum total score required to TAKE, derived from the
+    percentage threshold and the current max score.
+
+    Returns:
+        integer threshold (ceiling of pct * max)
+    """
+    import math
+    return math.ceil(TOTAL_MIN_SCORE_PCT * get_total_max_score())
+
+
+def get_score_pct(total_score: int) -> float:
+    """
+    Compute the score as a fraction of the maximum possible score.
+
+    Args:
+        total_score: combined phase 1 + phase 2 score
+
+    Returns:
+        float in [0.0, 1.0]
+    """
+    max_score = get_total_max_score()
+    if max_score <= 0:
+        return 0.0
+    return total_score / max_score
+
+
+def get_required_rr(total_score: int) -> float:
+    """
+    Determine the minimum R:R ratio required for a given total score.
+
+    Walks the RR_TIERS list (percentage-based) and returns the matching
+    tier's rr_ratio. Falls back to the most conservative tier if no
+    match is found (should not happen when TAKE threshold is enforced).
+
+    Args:
+        total_score: combined phase 1 + phase 2 score
+
+    Returns:
+        required risk:reward ratio (e.g. 3.0 means 1:3)
+    """
+    score_pct = get_score_pct(total_score)
+    for tier in RR_TIERS:
+        if tier["min_pct"] <= score_pct < tier["max_pct"]:
+            return tier["rr_ratio"]
+    # Fallback: return the most conservative (highest) R:R requirement
+    return max(t["rr_ratio"] for t in RR_TIERS)
+
 
 def compute_max_sl_pips(balance: float, pair: str = "EURUSD") -> int:
     """

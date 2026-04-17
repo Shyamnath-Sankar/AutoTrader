@@ -282,7 +282,22 @@ def _run_analysis_cycle_locked():
 
 def print_banner():
     """Print the bot startup banner."""
-    total_max = settings.PHASE1_MAX_SCORE + settings.PHASE2_MAX_SCORE
+    total_max = settings.get_total_max_score()
+    total_min_required = settings.get_total_min_required()
+    total_min_pct = int(settings.TOTAL_MIN_SCORE_PCT * 100)
+
+    # Build concise R:R tier string for the banner
+    rr_parts = []
+    for t in settings.RR_TIERS:
+        lo = int(t['min_pct'] * 100)
+        hi = int(t['max_pct'] * 100) if t['max_pct'] <= 1.0 else 100
+        rr_parts.append(f"{lo}-{hi}%→1:{t['rr_ratio']:.0f}")
+    rr_display = " · ".join(rr_parts)
+
+    scoring_line = f"P1 max {settings.PHASE1_MAX_SCORE} (min {settings.PHASE1_MIN_REQUIRED}) + P2 max {settings.PHASE2_MAX_SCORE} (min {settings.PHASE2_MIN_REQUIRED})"
+    total_line = f"{total_min_required}/{total_max} ({total_min_pct}%) to TAKE"
+    risk_line = f"{settings.MAX_LOSS_PER_TRADE_PCT}%/trade · {settings.DAILY_LOSS_LIMIT_PCT}%/day · {settings.MAX_TRADES_PER_DAY} trades/day"
+
     banner = f"""
 ╔══════════════════════════════════════════════════════════════╗
 ║              SMART MONEY TRADING BOT v2.0                   ║
@@ -294,9 +309,10 @@ def print_banner():
 ║  LLM:        {f'{settings.LLM_MODEL} @ {settings.LLM_BASE_URL[:30]}':<46}║
 ║  MT5:        {settings.MT5_BASE_URL:<46}║
 ╠══════════════════════════════════════════════════════════════╣
-║  Scoring:    P1 max {settings.PHASE1_MAX_SCORE} (min {settings.PHASE1_MIN_REQUIRED}) + P2 max {settings.PHASE2_MAX_SCORE} (min {settings.PHASE2_MIN_REQUIRED})              ║
-║  Total:      {settings.TOTAL_MIN_REQUIRED}/{total_max} to TAKE                                ║
-║  Risk:       {settings.MAX_LOSS_PER_TRADE_PCT}%/trade · {settings.DAILY_LOSS_LIMIT_PCT}%/day · {settings.MAX_TRADES_PER_DAY} trades/day            ║
+║  Scoring:    {scoring_line:<46}║
+║  Total:      {total_line:<46}║
+║  R:R Tiers:  {rr_display:<46}║
+║  Risk:       {risk_line:<46}║
 ║  Overtrading: max {settings.MAX_TAKE_ATTEMPTS_PER_DAY} TAKE attempts · {settings.REJECTION_COOLDOWN_MINUTES}min cooldown      ║
 ║  SL:         From swing structure + {settings.SL_BUFFER_PIPS}pip buffer             ║
 ║  Decisions:  TAKE / SCHEDULE / LEAVE                        ║

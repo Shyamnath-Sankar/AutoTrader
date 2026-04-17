@@ -236,6 +236,18 @@ def _run_hard_risk_checks(
 
 def _build_risk_prompt(max_loss_usd: float, daily_limit_usd: float) -> str:
     """Build the system prompt for the Risk Engine AI."""
+    total_max = settings.get_total_max_score()
+
+    # Build R:R tier description from percentage-based tiers
+    rr_lines = []
+    for t in settings.RR_TIERS:
+        lo = int(t['min_pct'] * 100)
+        hi = int(t['max_pct'] * 100) if t['max_pct'] <= 1.0 else 100
+        pts_lo = int(t['min_pct'] * total_max)
+        pts_hi = int(min(t['max_pct'], 1.0) * total_max)
+        rr_lines.append(f"  Score {lo}%-{hi}% ({pts_lo}-{pts_hi} pts): min R:R 1:{t['rr_ratio']:.0f}")
+    rr_desc = chr(10).join(rr_lines)
+
     return f"""You are a strict forex risk manager. Your job is to validate or reject a trade that has been proposed by a trader AI.
 
 You receive:
@@ -247,14 +259,12 @@ You receive:
 
 Your ONLY job is to:
 1. Verify the SL placement makes structural sense (not in the middle of a range)
-2. Verify the R:R ratio meets the minimum for the score tier
+2. Verify the R:R ratio meets the minimum for the score percentage tier
 3. Confirm the lot size doesn't exceed the risk budget
 4. Check that daily limits are respected
 
-R:R Requirements by score tier:
-{chr(10).join(f"  Score {t['min_score']}-{t['max_score']}: min R:R 1:{t['rr_ratio']:.0f}" for t in settings.RR_TIERS)}
-
-Default minimum R:R: 1:{settings.MIN_RR_RATIO}
+R:R Requirements by score percentage:
+{rr_desc}
 
 You MUST respond with ONLY valid JSON:
 {{
@@ -364,12 +374,13 @@ def evaluate(
             ),
         )
 
-    # ── Determine required R:R from score tier ──
-    required_rr = settings.MIN_RR_RATIO
-    for tier in settings.RR_TIERS:
-        if tier["min_score"] <= decision.total_score <= tier["max_score"]:
-            required_rr = tier["rr_ratio"]
-            break
+    # ── Determine required R:R from score percentage tier ──
+    required_rr = settings.get_required_rr(decision.total_score)
+    score_pct = settings.get_score_pct(decision.total_score)
+    logger.info(
+        f"Score {decision.total_score}/{settings.get_total_max_score()} "
+        f"({score_pct * 100:.0f}%) → required R:R 1:{required_rr:.0f}"
+    )
 
     # ── Compute TP from R:R requirement ──
     tp_pips = int(sl_pips * required_rr)
@@ -396,7 +407,7 @@ def evaluate(
         risk_context = f"""Proposed Trade:
   Pair: {pair}
   Direction: {decision.direction}
-  Total Score: {decision.total_score}
+  Total Score: {decision.total_score}/{settings.get_total_max_score()} ({score_pct * 100:.0f}%)
   Phase 1: {decision.phase1_total}/{settings.PHASE1_MAX_SCORE}
   Phase 2: {decision.phase2_total}/{settings.PHASE2_MAX_SCORE}
 
