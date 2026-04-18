@@ -110,6 +110,15 @@ MIN_SL_PIPS = 5                 # minimum sensible SL
 MAX_SL_PIPS = 100               # absolute maximum SL (hard cap)
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# ENTRY ANALYZER
+# ═══════════════════════════════════════════════════════════════════════════════
+
+ENTRY_SEARCH_RADIUS_PIPS = 30       # search for levels within 30 pips of price
+MARKET_ORDER_THRESHOLD_PIPS = 3     # enter at market if within 3 pips
+LIMIT_ORDER_EXPIRY_CANDLES = 8      # cancel limit order after 8 × 15min = 2hrs
+TP_MIN_RR = 2.0                     # TP must be at least 2× SL distance
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # OVERTRADING PROTECTION
 # ═══════════════════════════════════════════════════════════════════════════════
 

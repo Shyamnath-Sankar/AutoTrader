@@ -358,14 +358,19 @@ def fetch_news_events(pairs: list[str]) -> list[NewsEvent]:
 # 5. COLLECT EVERYTHING
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def collect_all_data(mt5: MT5Client, trade_logger=None) -> MarketDataPayload:
+def collect_all_data(mt5: MT5Client, trade_logger=None) -> tuple[MarketDataPayload, dict]:
     """
     Collect all market data for all configured pairs and assemble
     into a single MarketDataPayload for the AI.
+
+    Returns:
+        tuple of (MarketDataPayload, raw_ohlcv_dict)
+        raw_ohlcv_dict: {pair: {timeframe: pd.DataFrame}} for Entry Analyzer
     """
     payload = MarketDataPayload(
         timestamp=datetime.now(pytz.UTC).isoformat(),
     )
+    raw_ohlcv = {}  # Store raw OHLCV for Entry Analyzer
 
     # --- Account info from MT5 ---
     account = mt5.get_account_info()
@@ -389,6 +394,7 @@ def collect_all_data(mt5: MT5Client, trade_logger=None) -> MarketDataPayload:
     for pair in settings.PAIRS:
         logger.info(f"📊 Collecting data for {pair}...")
         pair_data = PairMarketData(pair=pair)
+        raw_ohlcv[pair] = {}
 
         # 1. TradingView indicators
         pair_data.indicators = fetch_all_indicators(pair)
@@ -397,6 +403,7 @@ def collect_all_data(mt5: MT5Client, trade_logger=None) -> MarketDataPayload:
         for tf_key, yf_config in YF_TIMEFRAMES.items():
             ohlcv_df = fetch_ohlcv(pair, yf_config["interval"], yf_config["period"])
             if ohlcv_df is not None and len(ohlcv_df) >= 20:
+                raw_ohlcv[pair][tf_key] = ohlcv_df  # Store raw for Entry Analyzer
                 pair_data.smc[tf_key] = analyze_smc(pair, ohlcv_df, tf_key)
             else:
                 pair_data.smc[tf_key] = SMCData(pair=pair, timeframe=tf_key)
@@ -407,7 +414,7 @@ def collect_all_data(mt5: MT5Client, trade_logger=None) -> MarketDataPayload:
         payload.pairs[pair] = pair_data
 
     logger.info(f"✅ Data collection complete for {len(settings.PAIRS)} pairs")
-    return payload
+    return payload, raw_ohlcv
 
 
 def format_data_for_prompt(payload: MarketDataPayload) -> str:
@@ -499,5 +506,36 @@ def format_data_for_prompt(payload: MarketDataPayload) -> str:
                     f"  [{event.impact}] {event.title} | "
                     f"{event.currency} | {event.minutes_away}min away"
                 )
+
+    return "\n".join(lines)
+
+
+def format_ohlcv_for_entry(pair: str, raw_ohlcv: dict, n_15m: int = 30, n_1h: int = 15) -> str:
+    """
+    Format raw OHLCV candle data as a readable table for the Entry Analyzer AI.
+    Includes the last N candles for 15M and 1H timeframes.
+    """
+    lines = []
+    pair_ohlcv = raw_ohlcv.get(pair, {})
+
+    for tf_key, label, n_candles in [("15m", "15M", n_15m), ("1h", "1H", n_1h)]:
+        df = pair_ohlcv.get(tf_key)
+        if df is None or df.empty:
+            lines.append(f"\n── {pair} {label} Candles: NO DATA ──")
+            continue
+
+        recent = df.tail(n_candles)
+        lines.append(f"\n── {pair} {label} Recent Candles (last {len(recent)}) ──")
+        lines.append(f"  {'Time':<20} | {'Open':>10} | {'High':>10} | {'Low':>10} | {'Close':>10} | {'Volume':>10}")
+        lines.append(f"  {'-'*20}-+-{'-'*10}-+-{'-'*10}-+-{'-'*10}-+-{'-'*10}-+-{'-'*10}")
+
+        for idx, row in recent.iterrows():
+            ts = str(idx)
+            if hasattr(idx, 'strftime'):
+                ts = idx.strftime('%Y-%m-%d %H:%M')
+            lines.append(
+                f"  {ts:<20} | {row['open']:>10.5f} | {row['high']:>10.5f} | "
+                f"{row['low']:>10.5f} | {row['close']:>10.5f} | {row.get('volume', 0):>10.0f}"
+            )
 
     return "\n".join(lines)

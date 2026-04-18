@@ -93,6 +93,9 @@ class TradeLogger:
             record.sl_pips = risk.sl_pips
             record.tp_pips = risk.tp_pips
             record.rr_ratio = risk.rr_ratio
+            record.entry_type = risk.entry_type
+            record.order_type = risk.order_type
+            record.confluence_count = risk.confluence_count
 
         # Add MT5 execution results
         if order:

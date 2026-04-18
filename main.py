@@ -1,14 +1,16 @@
 """
 main.py — Entry point & Orchestrator for the Smart Money Trading Bot.
 
-Architecture (per diagram):
+Architecture (per entry-architecture.svg):
   1. Hard gates (Python, not AI) — session, ADX, news
   2. Data collection layer — tradingview-ta, SMC library, news, MT5 account
   3. AI Trader Brain (Agent 1) — scores everything, outputs TAKE / LEAVE
-  4. Risk Engine (Agent 2) — computes SL from swing structure, lot size, validates
-  5. MT5 execution — place trade if approved
-  6. Result logger — trades.json
-  7. Scheduling intelligence — AI sets exact wakeup time, or cooldown after rejection
+  4. AI Entry Engine (Agent 3) — picks optimal entry price using OHLCV + SMC
+  5. Risk Engine (deterministic) — validates budget, computes lots, market vs limit
+  6. MT5 execution — place market or limit order
+  7. Trade Monitor — background TP1/TP2 management
+  8. Result logger — trades.json
+  9. Scheduling intelligence — cooldown after rejection
 
 Anti-overtrading protections:
   - Concurrency lock (no parallel analysis cycles)
@@ -55,6 +57,7 @@ logger.add(settings.LOG_FILE, level="DEBUG", rotation="10 MB", retention="30 day
 from core.gates import run_all_gates
 from services.data_collector import collect_all_data
 from agents.trader_brain import analyze
+from agents.entry_engine import find_entry
 from agents.risk_engine import evaluate
 from services.mt5_client import MT5Client
 from services.trade_logger import TradeLogger
@@ -111,7 +114,7 @@ def _compute_cooldown_minutes(consecutive_rejections: int) -> int:
 def run_analysis_cycle():
     """
     Run one complete analysis cycle:
-      Gates → Data → Brain → Risk → Execute → Log
+      Gates → Data → Brain → Entry Engine → Risk → Execute → Monitor → Log
 
     Protected by a threading lock to prevent overlapping cycles.
     """
@@ -159,7 +162,7 @@ def _run_analysis_cycle_locked():
 
     # ── Step 2: Collect Market Data ───────────────────────────────────────
     logger.info("\n📊 Step 2: Collecting market data...")
-    market_data = collect_all_data(mt5, trade_log)
+    market_data, raw_ohlcv = collect_all_data(mt5, trade_log)
 
     # ── Get today's stats for context ─────────────────────────────────────
     today_stats = trade_log.get_today_stats()
@@ -189,17 +192,45 @@ def _run_analysis_cycle_locked():
     # ── Step 4: Route Decision ────────────────────────────────────────────
 
     if decision.decision != "TAKE":
-        # ── LEAVE (or any non-TAKE): Log and reschedule at default interval ──
+        # ── LEAVE: Log and reschedule at default interval ──
         logger.info(f"🔴 Decision: LEAVE — no viable setup")
         trade_log.log_decision(decision)
         bot_scheduler.schedule_default_scan()
         return
 
-    # ── TAKE: Run Risk Engine → MT5 ──
-    logger.info("🟢 Decision: TAKE — running risk engine...")
+    # ── TAKE: Run Entry Engine → Risk Engine → MT5 ──
+    logger.info("🟢 Decision: TAKE — running Entry Engine...")
 
+    # ── Step 4b: Get live price for Entry Engine ──────────────────────────
+    price_data = mt5.get_price(decision.pair) if decision.pair else None
+    if not price_data:
+        logger.error(f"❌ Cannot get live price for {decision.pair}")
+        trade_log.log_decision(decision)
+        bot_scheduler.schedule_default_scan()
+        return
+
+    current_price = price_data.ask if decision.direction == "BUY" else price_data.bid
+
+    # ── Step 5: AI Entry Engine — find optimal entry point ────────────────
+    logger.info("\n🎯 Step 5: AI Entry Engine finding optimal entry...")
+    entry = find_entry(
+        decision=decision,
+        market_data=market_data,
+        raw_ohlcv=raw_ohlcv,
+        current_price=current_price,
+    )
+
+    if entry is None:
+        logger.error("❌ Entry Engine failed to produce a candidate")
+        trade_log.log_decision(decision)
+        bot_scheduler.schedule_default_scan()
+        return
+
+    # ── Step 6: Risk Engine — validate and compute lots ───────────────────
+    logger.info("\n⚖️ Step 6: Risk Engine validating...")
     risk_result = evaluate(
         decision=decision,
+        entry=entry,
         mt5=mt5,
         market_data=market_data,
         trades_today_count=today_stats["executed_count"],
@@ -231,21 +262,37 @@ def _run_analysis_cycle_locked():
     if settings.MODE == "demo":
         logger.info("🏷️  MODE: DEMO — placing trade on demo account")
 
-    order_result = mt5.place_market_order(
-        symbol=decision.pair,
-        direction=decision.direction,
-        volume=risk_result.lots,
-        stop_loss=risk_result.sl_price,
-        take_profit=risk_result.tp_price,
-    )
+    # ── Step 7: Place order (market or limit) ─────────────────────────────
+    if risk_result.order_type == "limit":
+        logger.info(f"📋 Placing LIMIT order @ {risk_result.entry_price}")
+        order_result = mt5.place_limit_order(
+            symbol=decision.pair,
+            direction=decision.direction,
+            volume=risk_result.lots,
+            price=risk_result.entry_price,
+            stop_loss=risk_result.sl_price,
+            take_profit=risk_result.tp_price,
+        )
+    else:
+        logger.info(f"⚡ Placing MARKET order")
+        order_result = mt5.place_market_order(
+            symbol=decision.pair,
+            direction=decision.direction,
+            volume=risk_result.lots,
+            stop_loss=risk_result.sl_price,
+            take_profit=risk_result.tp_price,
+        )
 
     if order_result.success:
+        emoji = "📋" if risk_result.order_type == "limit" else "🎯"
         logger.info(
-            f"🎯 Trade EXECUTED! Ticket #{order_result.order} | "
+            f"{emoji} Trade EXECUTED! Ticket #{order_result.order} | "
             f"{decision.direction} {risk_result.lots} lots {decision.pair} | "
-            f"Entry: {order_result.price} | SL: {risk_result.sl_price} ({risk_result.sl_pips}pips) | "
+            f"Entry: {order_result.price or risk_result.entry_price} | "
+            f"SL: {risk_result.sl_price} ({risk_result.sl_pips}pips) | "
             f"TP: {risk_result.tp_price} ({risk_result.tp_pips}pips) | "
-            f"R:R 1:{risk_result.rr_ratio:.1f}"
+            f"R:R 1:{risk_result.rr_ratio:.1f} | "
+            f"Type: {risk_result.entry_type} ({risk_result.order_type})"
         )
     else:
         logger.error(f"❌ Trade FAILED: {order_result.message} (code: {order_result.error_code})")
@@ -281,9 +328,9 @@ def print_banner():
 
     banner = f"""
 ╔══════════════════════════════════════════════════════════════╗
-║              SMART MONEY TRADING BOT v2.0                   ║
-║              ────────────────────────                       ║
-║  AI-Powered · ICT/SMC · Two-Phase Scoring                   ║
+║         SMART MONEY TRADING BOT v3.0 — ENTRY ENGINE        ║
+║         ─────────────────────────────────────────           ║
+║  AI-Powered · ICT/SMC · Precise Entry · Dual TP            ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  Mode:       {settings.MODE.upper():<46}║
 ║  Pairs:      {', '.join(settings.PAIRS):<46}║
@@ -296,6 +343,9 @@ def print_banner():
 ║  Risk:       {risk_line:<46}║
 ║  Overtrading: max {settings.MAX_TAKE_ATTEMPTS_PER_DAY} TAKE attempts · {settings.REJECTION_COOLDOWN_MINUTES}min cooldown      ║
 ║  SL:         From swing structure + {settings.SL_BUFFER_PIPS}pip buffer             ║
+║  TP:         From SMC structure, min {settings.TP_MIN_RR}x SL                   ║
+║  Entry:      AI picks: sweep → OB → FVG → swing/round      ║
+║  Orders:     Market (≤{settings.MARKET_ORDER_THRESHOLD_PIPS}pip) / Limit (>{settings.MARKET_ORDER_THRESHOLD_PIPS}pip)           ║
 ║  Decisions:  TAKE / LEAVE                                   ║
 ╚══════════════════════════════════════════════════════════════╝
 """
@@ -354,6 +404,9 @@ def check_prerequisites() -> bool:
     else:
         logger.info(f"✅ Phase 2 scoring: {p2_sum} pts across 4 components")
 
+    logger.info(f"✅ Entry Engine: search {settings.ENTRY_SEARCH_RADIUS_PIPS}pip radius, "
+                f"market≤{settings.MARKET_ORDER_THRESHOLD_PIPS}pip, limit>{settings.MARKET_ORDER_THRESHOLD_PIPS}pip")
+    logger.info(f"✅ TP: from SMC structure, min {settings.TP_MIN_RR}x SL")
     return ok
 
 
@@ -365,7 +418,7 @@ def main():
     """Main entry point — starts the bot daemon."""
     print_banner()
 
-    logger.info("🚀 Starting Smart Money Trading Bot v2.0...")
+    logger.info("🚀 Starting Smart Money Trading Bot v3.0 — Entry Engine Edition...")
 
     # Check prerequisites
     if not check_prerequisites():

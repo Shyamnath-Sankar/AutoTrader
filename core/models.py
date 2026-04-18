@@ -163,6 +163,30 @@ class TraderDecision(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Entry Candidate — Output from AI Entry Analyzer
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class EntryCandidate(BaseModel):
+    """
+    A single candidate entry level selected by the Entry Analyzer AI.
+
+    The Entry Analyzer receives OHLCV + SMC structures + direction,
+    and picks the optimal entry price with structure-based SL and TP.
+    """
+    entry_type: str = ""            # "sweep", "ob", "fvg", "swing", "round"
+    priority: int = 4               # 1 (sweep/best) to 4 (swing/round)
+    entry_price: float = 0.0
+    sl_price: float = 0.0
+    sl_pips: int = 0
+    tp_price: float = 0.0
+    tp_pips: int = 0
+    rr_ratio: float = 0.0           # TP/SL ratio
+    confluence_count: int = 1       # how many structures overlap
+    distance_from_current: float = 0.0  # pips from current price
+    reasoning: str = ""             # why this level is significant
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Risk Engine — Agent 2
 #
 # Risk Engine receives: scores + direction + swing structure + live price + account
@@ -170,7 +194,9 @@ class TraderDecision(BaseModel):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class RiskApproval(BaseModel):
-    """Output from AI Agent 2 — Risk Engine."""
+    """
+    Output from Risk Engine — deterministic validation of an entry candidate.
+    """
     approved: bool
     lots: float = 0.0
     sl_price: float = 0.0
@@ -178,8 +204,11 @@ class RiskApproval(BaseModel):
     sl_pips: int = 0
     tp_pips: int = 0
     entry_price: float = 0.0
+    order_type: str = "market"     # "market" or "limit"
     reason: str = ""
     rr_ratio: float = 0.0
+    entry_type: str = ""           # sweep/ob/fvg/swing/round
+    confluence_count: int = 0
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -248,6 +277,9 @@ class TradeRecord(BaseModel):
     sl_pips: int = 0
     tp_pips: int = 0
     rr_ratio: float = 0.0
+    entry_type: str = ""           # sweep/ob/fvg/swing/round
+    order_type: str = "market"     # market or limit
+    confluence_count: int = 0
     mt5_ticket: Optional[int] = None
     mt5_message: str = ""
     result: Optional[str] = None   # "win", "loss", or None (pending)

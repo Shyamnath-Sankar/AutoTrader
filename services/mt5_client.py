@@ -197,3 +197,152 @@ class MT5Client:
         """Calculate today's P&L from open positions."""
         positions = self.get_positions()
         return sum(p.get("profit", 0.0) for p in positions)
+
+    # ── limit orders ─────────────────────────────────────────────────────────
+
+    def place_limit_order(
+        self,
+        symbol: str,
+        direction: str,
+        volume: float,
+        price: float,
+        stop_loss: float,
+        take_profit: float,
+    ) -> OrderResult:
+        """
+        Place a limit (pending) BUY_LIMIT or SELL_LIMIT order.
+
+        Args:
+            symbol:      "EURUSD" or "GBPUSD"
+            direction:   "BUY" or "SELL"
+            volume:      lot size
+            price:       limit entry price
+            stop_loss:   SL price level
+            take_profit: TP price level
+        """
+        order_type = "BUY_LIMIT" if direction.upper() == "BUY" else "SELL_LIMIT"
+        payload = {
+            "symbol": symbol,
+            "volume": volume,
+            "type": order_type,
+            "price": price,
+            "stop_loss": stop_loss,
+            "take_profit": take_profit,
+        }
+
+        logger.info(f"Placing {order_type} {volume} lots {symbol} @ {price} | SL={stop_loss} TP={take_profit}")
+
+        data = self._post("/order/pending", payload)
+        if data is None:
+            # Fallback: try as market order if pending endpoint doesn't exist
+            logger.warning("Pending order endpoint failed — falling back to market order")
+            return self.place_market_order(symbol, direction, volume, stop_loss, take_profit)
+
+        return OrderResult(
+            success=data.get("success", False),
+            order=data.get("order"),
+            message=data.get("message", ""),
+            symbol=data.get("symbol", symbol),
+            type=data.get("type", order_type),
+            volume=data.get("volume", volume),
+            price=data.get("price", price),
+            stop_loss=data.get("stop_loss", stop_loss),
+            take_profit=data.get("take_profit", take_profit),
+            error_code=data.get("error_code"),
+        )
+
+    # ── position management ──────────────────────────────────────────────────
+
+    def close_partial(self, ticket: int, volume: float) -> OrderResult:
+        """
+        Close a partial volume of an open position.
+
+        Args:
+            ticket: position ticket number
+            volume: volume to close (e.g., 0.01 to close half of 0.02)
+        """
+        payload = {"ticket": ticket, "volume": volume}
+        logger.info(f"Closing {volume} lots of position #{ticket}")
+
+        data = self._post(f"/positions/{ticket}/close-partial", payload)
+        if data is None:
+            # Fallback: try standard close
+            logger.warning("Partial close endpoint failed — trying full close")
+            result = self.close_position(ticket)
+            return OrderResult(
+                success=result is not None,
+                order=ticket,
+                message=str(result) if result else "Close failed",
+            )
+
+        return OrderResult(
+            success=data.get("success", False),
+            order=data.get("order", ticket),
+            message=data.get("message", ""),
+            volume=volume,
+        )
+
+    def modify_sl(self, ticket: int, new_sl: float) -> bool:
+        """
+        Modify the stop loss of an open position (e.g., move to breakeven).
+
+        Args:
+            ticket: position ticket number
+            new_sl: new SL price level
+
+        Returns:
+            True if modification succeeded
+        """
+        payload = {"ticket": ticket, "stop_loss": new_sl}
+        logger.info(f"Modifying SL of position #{ticket} → {new_sl}")
+
+        data = self._post(f"/positions/{ticket}/modify", payload)
+        if data is None:
+            logger.warning(f"Failed to modify SL for position #{ticket}")
+            return False
+
+        return data.get("success", False)
+
+    def modify_position(self, ticket: int, stop_loss: float = None, take_profit: float = None) -> bool:
+        """
+        Modify SL and/or TP of an open position.
+
+        Args:
+            ticket: position ticket number
+            stop_loss: new SL price (or None to keep current)
+            take_profit: new TP price (or None to keep current)
+
+        Returns:
+            True if modification succeeded
+        """
+        payload = {"ticket": ticket}
+        if stop_loss is not None:
+            payload["stop_loss"] = stop_loss
+        if take_profit is not None:
+            payload["take_profit"] = take_profit
+
+        logger.info(f"Modifying position #{ticket} — SL={stop_loss}, TP={take_profit}")
+
+        data = self._post(f"/positions/{ticket}/modify", payload)
+        if data is None:
+            logger.warning(f"Failed to modify position #{ticket}")
+            return False
+
+        return data.get("success", False)
+
+    # ── pending order management ─────────────────────────────────────────────
+
+    def get_pending_orders(self) -> list[dict]:
+        """Get all pending (unfilled) orders."""
+        data = self._get("/orders/pending")
+        if data is None:
+            return []
+        return data if isinstance(data, list) else []
+
+    def cancel_pending_order(self, ticket: int) -> bool:
+        """Cancel a pending order by ticket."""
+        logger.info(f"Cancelling pending order #{ticket}")
+        data = self._delete(f"/orders/{ticket}")
+        if data is None:
+            return False
+        return data.get("success", True)  # assume success if endpoint exists
