@@ -18,7 +18,7 @@ The Risk Engine then validates the budget and executes.
 import json
 
 from loguru import logger
-from openai import OpenAI
+from openai import AzureOpenAI, OpenAI
 
 from config import settings
 from core.models import (
@@ -165,15 +165,24 @@ Trader Brain Score: {decision.total_score}/{settings.get_total_max_score()} ({se
 Analyze the candles and structures above. Find the OPTIMAL entry price, SL, and TP."""
 
     try:
-        client = OpenAI(
-            api_key=settings.LLM_API_KEY,
-            base_url=settings.LLM_BASE_URL,
-        )
+        if settings.LLM_PROVIDER == "azure":
+            client = AzureOpenAI(
+                api_key=settings.AZURE_OPENAI_API_KEY,
+                azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+                api_version=settings.AZURE_OPENAI_API_VERSION,
+            )
+            model_name = settings.AZURE_OPENAI_DEPLOYMENT
+        else:
+            client = OpenAI(
+                api_key=settings.LLM_API_KEY,
+                base_url=settings.LLM_BASE_URL,
+            )
+            model_name = settings.LLM_MODEL
 
         response = client.chat.completions.create(
-            model=settings.LLM_MODEL,
+            model=model_name,
             temperature=0.15,  # low for precise price levels
-            max_tokens=1500,
+            **{settings.LLM_MAX_TOKENS_PARAM: 1500},
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_message},

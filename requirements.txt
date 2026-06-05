@@ -11,3 +11,4 @@ python-dotenv>=1.0.0
 pytz>=2024.1
 loguru>=0.7.0
 metatrader-mcp-server==0.5.1
+MetaTrader5>=5.0.45

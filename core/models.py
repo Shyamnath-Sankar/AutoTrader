@@ -104,6 +104,7 @@ class PairMarketData(BaseModel):
     indicators: dict[str, IndicatorSet] = {}    # key = timeframe
     smc: dict[str, SMCData] = {}                # key = timeframe
     news_events: list[NewsEvent] = []
+    news_fetch_ok: bool = True   # False if news calendar fetch failed (score neutral)
 
 
 class MarketDataPayload(BaseModel):
@@ -154,6 +155,7 @@ class TraderDecision(BaseModel):
     decision: str                    # "TAKE" or "LEAVE"
     pair: Optional[str] = None
     direction: Optional[str] = None  # "BUY", "SELL", or None
+    news_excluded: bool = False      # True when news fetch failed; news pts excluded from max
     phase1_scores: Phase1Scores = Field(default_factory=Phase1Scores)
     phase1_total: int = 0
     phase2_scores: Phase2Scores = Field(default_factory=Phase2Scores)
